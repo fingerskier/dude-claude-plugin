@@ -98,7 +98,10 @@ All tools are exposed under the MCP server name `dude`. Claude sees them as `mcp
 
 ### 4.1 `search`
 
-Semantic search across records. By default, search includes cross-project results so that learnings from one project can inform another. Results from the current project are ranked higher; cross-project results appear at lower weight. Each result includes the originating `project` name/ID for disambiguation.
+Semantic search across records.
+By default, search includes cross-project results so that learnings from one project can inform another.
+Results from the current project are ranked higher; cross-project results appear at lower weight.
+Each result includes the originating `project` name/ID for disambiguation.
 
 | Parameter    | Type    | Required | Default | Description                       |
 |--------------|---------|----------|---------|-----------------------------------|
@@ -107,11 +110,14 @@ Semantic search across records. By default, search includes cross-project result
 | project      | string  | no       | current | Project name to boost; `'*'` for equal weight across all projects |
 | limit        | integer | no       | 5       | Max results returned              |
 
-Returns: array of `{ id, project, kind, title, body, status, similarity }` sorted by descending similarity. Results with similarity < 0.3 are excluded. The `project` field defaults to the current project but is always present in the response so callers can distinguish cross-project results.
+Returns: array of `{ id, project, kind, title, body, status, similarity }` sorted by descending similarity.
+Results with similarity < 0.3 are excluded.
+The `project` field defaults to the current project but is always present in the response so callers can distinguish cross-project results.
 
 ### 4.2 `upsert_record`
 
-Create or update a record. If `id` is provided, update; otherwise insert with deduplication (see below).
+Create or update a record.
+If `id` is provided, update; otherwise insert with deduplication (see below).
 
 | Parameter  | Type    | Required | Description              |
 |------------|---------|----------|--------------------------|
@@ -123,7 +129,7 @@ Create or update a record. If `id` is provided, update; otherwise insert with de
 
 On upsert the server:
 1. Generates an embedding from `title + ' ' + body`.
-2. **Deduplication**: If no `id` is provided, query `record_embedding` for existing records in the same project and `kind` whose embedding distance is below a configurable threshold (default cosine distance ≤ 0.15). If a close match exists, treat the operation as an update of that record instead of creating a duplicate.
+2. **Deduplication**: If no `id` is provided, query `record_embedding` for existing records in the same project and `kind` whose embedding distance is below a configurable threshold (default cosine distance ≤ 0.15).  If a close match exists, treat the operation as an update of that record instead of creating a duplicate.
 3. Writes (insert or update) the record row.
 4. Upserts into `record_embedding`.
 
@@ -314,14 +320,3 @@ src/
 ```bash
 claude mcp add --transport stdio dude -- node /path/to/dude-claude-plugin/bin/dude-claude.js mcp
 ```
-
-## 10. Resolved Decisions
-
-These questions were resolved before implementation began. They are documented here for context.
-
-1. **Embedding model** — Local `all-MiniLM-L6-v2` (384-dim) is sufficient. No API-based embedding option is needed. The model is offline, fast, and the dimensionality is adequate for this use case.
-2. **Cross-project search** — Enabled by default. Search returns results from all projects, with current-project results ranked higher. Each result includes the originating project name/ID for disambiguation. See §4.1.
-3. **Record deduplication** — On upsert without an explicit `id`, the server computes embedding distance against existing records in the same project and `kind`. If a close match is found (cosine distance ≤ 0.15), the existing record is updated instead of creating a duplicate. See §4.2.
-4. **Context budget** — The auto-retrieve hook injects a default of 5 results. This is configurable via the `DUDE_CONTEXT_LIMIT` env var or the `contextLimit` config key. See §5.1.
-5. **Migration strategy** — Versioned migration scripts stored in `src/migrations/`. On startup, `db.js` checks a `schema_version` table and runs any pending migrations in order. See §8.
-6. **Hook reliability** — On malformed JSON or model refusal, the Stop hook silently skips the upsert (no data loss, no user-facing error) and emits a tool message to Claude's worklog noting the skip. See §5.2.
