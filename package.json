@@ -1,6 +1,6 @@
 {
   "name": "dude-claude-plugin",
-  "version": "1.0.0",
+  "version": "2026.2.1",
   "description": "Ultra-minimal RAG and cross-project memory for Claude CLI",
   "type": "module",
   "bin": {
