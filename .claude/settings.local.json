@@ -27,7 +27,11 @@
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
       "Bash(node:*)",
-      "Bash(del \"C:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\\\\test-fix.js\")"
+      "Bash(del \"C:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\\\\test-fix.js\")",
+      "Bash(1 --prefix \"c:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\")",
+      "Bash(gh issue view:*)",
+      "Bash(test:*)",
+      "WebFetch(domain:registry.npmjs.org)"
     ]
   },
   "enableAllProjectMcpServers": true,
