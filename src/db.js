@@ -6,6 +6,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import Database from 'better-sqlite3';
 import * as sqliteVec from 'sqlite-vec';
 
+/** Convert a Float32Array embedding to a Node.js Buffer for sqlite-vec binding. */
+function embeddingBuffer(emb) {
+  return Buffer.from(emb.buffer, emb.byteOffset, emb.byteLength);
+}
+
 const DATA_DIR = join(homedir(), '.dude-claude');
 const DB_PATH = join(DATA_DIR, 'dude.db');
 
@@ -174,7 +179,7 @@ export function searchRecords(embedding, { kind, projectId, limit = 5 } = {}) {
     JOIN project p ON r.project_id = p.id
     WHERE re.embedding MATCH ? AND k = ?
   `;
-  const params = [new Float32Array(embedding).buffer, limit * 3]; // over-fetch for filtering
+  const params = [embeddingBuffer(new Float32Array(embedding)), limit * 3]; // over-fetch for filtering
 
   if (kind && kind !== 'all') {
     sql += ' AND r.kind = ?';
@@ -217,7 +222,7 @@ export function upsertRecord({ id, projectId, kind, title, body = '', status = '
 
     // vec0 doesn't support UPDATE — delete then insert
     d.prepare('DELETE FROM record_embedding WHERE record_id = ?').run(id);
-    d.prepare('INSERT INTO record_embedding (record_id, embedding) VALUES (?, ?)').run(id, embedding.buffer);
+    d.prepare('INSERT INTO record_embedding (record_id, embedding) VALUES (?, ?)').run(BigInt(id), embeddingBuffer(embedding));
 
     return getRecord(id);
   }
@@ -231,7 +236,7 @@ export function upsertRecord({ id, projectId, kind, title, body = '', status = '
       AND r.project_id = ? AND r.kind = ?
     ORDER BY re.distance
     LIMIT 1
-  `).all(embedding.buffer, proj, kind);
+  `).all(embeddingBuffer(embedding), proj, kind);
 
   if (candidates.length > 0 && candidates[0].distance <= 0.15) {
     // Close match found — update existing record
@@ -242,7 +247,7 @@ export function upsertRecord({ id, projectId, kind, title, body = '', status = '
     `).run(title, body, status, now, existingId);
 
     d.prepare('DELETE FROM record_embedding WHERE record_id = ?').run(existingId);
-    d.prepare('INSERT INTO record_embedding (record_id, embedding) VALUES (?, ?)').run(existingId, embedding.buffer);
+    d.prepare('INSERT INTO record_embedding (record_id, embedding) VALUES (?, ?)').run(BigInt(existingId), embeddingBuffer(embedding));
 
     return getRecord(existingId);
   }
@@ -254,7 +259,7 @@ export function upsertRecord({ id, projectId, kind, title, body = '', status = '
   `).run(proj, kind, title, body, status, now, now);
 
   const newId = result.lastInsertRowid;
-  d.prepare('INSERT INTO record_embedding (record_id, embedding) VALUES (?, ?)').run(newId, embedding.buffer);
+  d.prepare('INSERT INTO record_embedding (record_id, embedding) VALUES (?, ?)').run(BigInt(newId), embeddingBuffer(embedding));
 
   return getRecord(Number(newId));
 }

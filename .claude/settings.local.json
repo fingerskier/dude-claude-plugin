@@ -18,7 +18,16 @@
       "Bash(git -C \"c:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\" log --oneline -10)",
       "Bash(git -C \"c:\\\\dev\\\\fingerskier\\\\agent\\\\claude-plugins\" log --oneline -5)",
       "Bash(git -C \"c:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\" ls-tree -r --name-only HEAD)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(npm ls:*)",
+      "mcp__dude__list_projects",
+      "mcp__dude__list_records",
+      "mcp__dude__search",
+      "mcp__dude__upsert_record",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(node:*)",
+      "Bash(del \"C:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\\\\test-fix.js\")"
     ]
   },
   "enableAllProjectMcpServers": true,
