@@ -1,4 +1,4 @@
-# dudamel-plugin
+# Dude Claude Plugin
 A context multiplier plug-in for Claude CLI
 
 ## Features
