@@ -1,6 +1,6 @@
 {
   "name": "dude-claude-plugin",
-  "version": "2026.2.1",
+  "version": "2026.2.2",
   "description": "Ultra-minimal RAG and cross-project memory for Claude CLI",
   "type": "module",
   "bin": {
@@ -13,6 +13,34 @@
     "start": "node bin/dude-claude.js mcp",
     "serve": "node bin/dude-claude.js serve"
   },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "plugin",
+    "mcp",
+    "rag",
+    "memory",
+    "knowledge-base",
+    "vector-search"
+  ],
+  "author": "Fingerskier",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fingerskier/dude-claude-plugin.git"
+  },
+  "homepage": "https://github.com/fingerskier/dude-claude-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/fingerskier/dude-claude-plugin/issues"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "hooks/",
+    "web/",
+    ".claude-plugin/",
+    ".mcp.json",
+    "hooks.json"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "zod": "^3.24.2",

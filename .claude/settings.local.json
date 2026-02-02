@@ -7,7 +7,18 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(tree:*)",
+      "Bash(git -C \"c:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\" remote -v)",
+      "Bash(git -C \"c:\\\\dev\\\\fingerskier\\\\agent\\\\claude-plugins\" remote -v)",
+      "Bash(npm whoami:*)",
+      "Bash(npm view:*)",
+      "Bash(npm pack:*)",
+      "Bash(git -C \"c:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\" log --oneline -10)",
+      "Bash(git -C \"c:\\\\dev\\\\fingerskier\\\\agent\\\\claude-plugins\" log --oneline -5)",
+      "Bash(git -C \"c:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\" ls-tree -r --name-only HEAD)",
+      "Bash(gh api:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
