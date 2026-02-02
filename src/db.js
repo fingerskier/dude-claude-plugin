@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { homedir } from 'node:os';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import Database from 'better-sqlite3';
 import * as sqliteVec from 'sqlite-vec';
 
@@ -36,7 +36,7 @@ async function runMigrations(d) {
   const currentVersion = row?.v ?? 0;
 
   const migrationsDir = new URL('./migrations/', import.meta.url);
-  const migrationsPath = migrationsDir.pathname;
+  const migrationsPath = fileURLToPath(migrationsDir);
 
   const files = readdirSync(migrationsPath)
     .filter(f => f.endsWith('.js'))

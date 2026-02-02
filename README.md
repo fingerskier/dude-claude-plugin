@@ -3,37 +3,30 @@ A context multiplier plug-in for Claude CLI
 
 ## Install
 
-### npx (recommended)
+### As a plugin (recommended)
 
-Add MCP server config to Claude CLI settings (`~/.claude.json` or project `.mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "dude": {
-      "command": "npx",
-      "args": ["dude-claude-plugin", "mcp"]
-    }
-  }
-}
+```bash
+git clone https://github.com/fingerskier/dude-claude-plugin
+cd dude-claude-plugin
+npm install
+claude --plugin-dir /path/to/dude-claude-plugin
 ```
 
-### From source
+This registers the MCP server and hooks (auto-retrieve on prompt, auto-persist on stop).
 
-1. Clone the repo
-2. `npm install`
-3. Add MCP server config:
-   ```json
-   {
-     "mcpServers": {
-       "dude": {
-         "command": "node",
-         "args": ["/path/to/dude-claude-plugin/bin/dude-claude.js", "mcp"]
-       }
-     }
-   }
-   ```
-4. (Optional) Start the web UI: `npm run serve`
+### MCP server only (via npx)
+
+If you just want the MCP tools without hooks:
+
+```bash
+claude mcp add dude -- npx dude-claude-plugin mcp
+```
+
+### Optional: Web UI
+
+```bash
+npm run serve
+```
 
 ## Features
 
@@ -52,6 +45,4 @@ Add MCP server config to Claude CLI settings (`~/.claude.json` or project `.mcp.
   * CRUD project
   * CRUD issue ~ per project
   * CRID specification ~ per project
-  * 
 * Local webserver to do manual CRUD
-

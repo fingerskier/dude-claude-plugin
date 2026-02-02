@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp:*)",
+      "Bash(claude plugin:*)",
+      "Bash(git -C \"C:\\\\dev\\\\fingerskier\\\\agent\\\\dude-claude-plugin\" log --oneline -20)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(echo:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "dude"
+  ]
+}
