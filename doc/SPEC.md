@@ -89,8 +89,10 @@ CREATE VIRTUAL TABLE record_embedding USING vec0(
 
 On startup the server determines the current project:
 1. Run `git rev-parse --show-toplevel` — if it succeeds, use the **basename** as the project name.
-2. Otherwise, use the **working directory path** as the project name.
-3. Upsert into `project` table.
+2. Try `git remote get-url origin` — if it succeeds and the URL matches a known host (GitHub, GitLab, Bitbucket), extract `org/repo` as the project name (e.g. `fingerskier/dude-claude-plugin`). Supports both HTTPS and SSH URL formats.
+3. If no remote is found, keep the basename from step 1.
+4. If not in a git repo at all, use the **working directory path** as the project name.
+5. Upsert into `project` table.
 
 ## 4. MCP Tools
 

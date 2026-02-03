@@ -70,6 +70,22 @@ function detectProject() {
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
     name = basename(toplevel);
+
+    // Try to extract org/repo from remote URL
+    try {
+      const remoteUrl = execSync('git remote get-url origin', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      const match = remoteUrl.match(
+        /(?:github\.com|gitlab\.com|bitbucket\.org)[/:]([^/]+)\/([^/.]+)/
+      );
+      if (match) {
+        name = `${match[1]}/${match[2]}`;
+      }
+    } catch {
+      // No remote — keep basename
+    }
   } catch {
     name = process.cwd();
   }
@@ -91,6 +107,19 @@ export async function initDb() {
   await runMigrations(db);
   const projectName = detectProject();
   currentProject = upsertProject(db, projectName);
+
+  // Migrate records from old basename-only project to new org/repo project
+  if (projectName.includes('/')) {
+    const oldName = basename(projectName);
+    const oldProject = db.prepare('SELECT id FROM project WHERE name = ?').get(oldName);
+    if (oldProject && oldProject.id !== currentProject.id) {
+      db.prepare('UPDATE record SET project_id = ? WHERE project_id = ?')
+        .run(currentProject.id, oldProject.id);
+      db.prepare('DELETE FROM project WHERE id = ?').run(oldProject.id);
+      console.error(`[dude] Migrated records from "${oldName}" to "${projectName}"`);
+    }
+  }
+
   console.error(`[dude] DB ready — project "${currentProject.name}" (id=${currentProject.id})`);
   return db;
 }
