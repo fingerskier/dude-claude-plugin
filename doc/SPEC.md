@@ -26,7 +26,7 @@ Claude CLI
 | Language        | Plain JavaScript (ESM)| Zero build step; ultra-minimal goal    |
 | Database        | better-sqlite3        | Synchronous, zero-config, single-file  |
 | Vector search   | sqlite-vec (vec0)     | SQLite extension; no external service  |
-| Embeddings      | Local: all-MiniLM-L6-v2 via `onnxruntime-node` | Offline, fast, 384-dim |
+| Embeddings      | Local: all-MiniLM-L6-v2 via `@huggingface/transformers` | Offline, fast, 384-dim |
 | MCP SDK         | `@modelcontextprotocol/sdk` | Official MCP server library   |
 | Web UI          | Bare `http` module + static HTML | No framework; minimal       |
 
@@ -37,8 +37,7 @@ dependencies:
   @modelcontextprotocol/sdk
   better-sqlite3
   sqlite-vec
-  onnxruntime-node
-  @xenova/transformers   # wraps ONNX for embedding generation
+  @huggingface/transformers   # local ONNX embedding generation
 ```
 
 ## 3. Data Model
