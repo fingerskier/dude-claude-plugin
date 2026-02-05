@@ -15,6 +15,11 @@
       {
         "hooks": [
           {
+            "type": "prompt",
+            "prompt": "Review the conversation. If a bug was fixed, output JSON: {\"action\":\"upsert\",\"kind\":\"issue\",\"title\":\"...\",\"body\":\"...\",\"status\":\"resolved\"}. If a feature or improvement was made, output JSON: {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"...\"}. If neither, output {\"action\":\"none\"}. Output ONLY the JSON, no other text.",
+            "timeout": 30
+          },
+          {
             "type": "command",
             "command": "npx -y dude-claude-plugin auto-persist",
             "timeout": 60
