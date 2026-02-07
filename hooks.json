@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "A plan has been created. Review it and output JSON to save it as a project spec: {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"<plan title>\",\"body\":\"<full plan details including steps>\",\"status\":\"open\"}. Output ONLY the JSON, no other text.",
+            "prompt": "A plan has been created. Review it and output JSON to save it as a project spec. Do NOT worry about project context — it is detected automatically. Output: {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"<plan title>\",\"body\":\"<full plan details including steps>\",\"status\":\"open\"}. If no plan was actually created, output {\"action\":\"none\"}. You MUST output ONLY valid JSON, no explanations or caveats.",
             "timeout": 30
           },
           {
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Review the conversation. Classify the work and output ONE JSON object. Bug fix: {\"action\":\"upsert\",\"kind\":\"issue\",\"title\":\"...\",\"body\":\"...\",\"status\":\"resolved\"}. Architectural change (new patterns, structural reorganization, API design): {\"action\":\"upsert\",\"kind\":\"arch\",\"title\":\"...\",\"body\":\"<describe the architectural decision and rationale>\",\"status\":\"resolved\"}. Feature update or improvement to existing functionality: {\"action\":\"upsert\",\"kind\":\"update\",\"title\":\"...\",\"body\":\"<summary of what was changed>\",\"status\":\"resolved\"}. New specification or plan (not yet implemented): {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"<plan details>\",\"status\":\"open\"}. Completing a planned spec: {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"<summary of what was implemented>\",\"status\":\"resolved\"}. If none apply, output {\"action\":\"none\"}. Output ONLY the JSON, no other text.",
+            "prompt": "Review the conversation and classify the work done. Do NOT worry about project context — it is detected automatically. Focus ONLY on the type of work. If multiple types of work were done, pick the primary one. Output ONE JSON object and nothing else. Bug fix: {\"action\":\"upsert\",\"kind\":\"issue\",\"title\":\"...\",\"body\":\"...\",\"status\":\"resolved\"}. Architectural change (new patterns, structural reorganization, API design): {\"action\":\"upsert\",\"kind\":\"arch\",\"title\":\"...\",\"body\":\"<describe the architectural decision and rationale>\",\"status\":\"resolved\"}. Feature update or improvement to existing functionality: {\"action\":\"upsert\",\"kind\":\"update\",\"title\":\"...\",\"body\":\"<summary of what was changed>\",\"status\":\"resolved\"}. New specification or plan (not yet implemented): {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"<plan details>\",\"status\":\"open\"}. Completing a planned spec: {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"<summary of what was implemented>\",\"status\":\"resolved\"}. If no meaningful work was done (e.g. just a question or greeting), output {\"action\":\"none\"}. You MUST output ONLY valid JSON, no explanations or caveats.",
             "timeout": 30
           },
           {
