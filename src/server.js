@@ -24,10 +24,10 @@ export async function startServer() {
   // ---- search ----
   server.tool(
     'search',
-    'Semantic search across records (issues & specs). Returns cross-project results ranked by similarity.',
+    'Semantic search across records (issues, specs, arch decisions & updates). Returns cross-project results ranked by similarity.',
     {
       query: z.string().describe('Natural language search query'),
-      kind: z.enum(['issue', 'spec', 'all']).optional().describe('Filter by record kind'),
+      kind: z.enum(['issue', 'spec', 'arch', 'update', 'all']).optional().describe('Filter by record kind'),
       project: z.string().optional().describe('Project name to boost; "*" for equal weight'),
       limit: z.number().int().positive().optional().describe('Max results (default 5)'),
     },
@@ -51,7 +51,7 @@ export async function startServer() {
     'Create or update a record. If id is provided, updates that record. Otherwise inserts with dedup.',
     {
       id: z.number().int().optional().describe('Record ID to update (omit for new)'),
-      kind: z.enum(['issue', 'spec']).describe('Record kind'),
+      kind: z.enum(['issue', 'spec', 'arch', 'update']).describe('Record kind: issue (bug), spec (plan), arch (architecture decision), update (feature change)'),
       title: z.string().describe('Short summary'),
       body: z.string().optional().describe('Full description'),
       status: z.enum(['open', 'resolved', 'archived']).optional().describe('Defaults to open'),
@@ -102,7 +102,7 @@ export async function startServer() {
     'list_records',
     'List records with optional filters.',
     {
-      kind: z.enum(['issue', 'spec', 'all']).optional().describe('Filter by kind'),
+      kind: z.enum(['issue', 'spec', 'arch', 'update', 'all']).optional().describe('Filter by kind'),
       status: z.enum(['open', 'resolved', 'archived', 'all']).optional().describe('Filter by status'),
       project: z.string().optional().describe('Project name, or "*" for all'),
     },

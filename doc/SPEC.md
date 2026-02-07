@@ -55,19 +55,26 @@ Single SQLite file per user: `~/.dude-claude/dude.db`
 
 ### 3.2 `record`
 
-A record is either an **issue** or a **specification**. 
-Both share one table to keep queries and embeddings uniform.
+A record is one of four kinds: **issue**, **spec**, **arch**, or **update**.
+All share one table to keep queries and embeddings uniform.
 
-| Column      | Type    | Notes                                         |
-|-------------|---------|-----------------------------------------------|
-| id          | INTEGER | PK, autoincrement                             |
-| project_id  | INTEGER | FK → project.id                               |
-| kind        | TEXT    | `'issue'` or `'spec'`                         |
-| title       | TEXT    | Short summary                                 |
-| body        | TEXT    | Full description / details                    |
-| status      | TEXT    | `'open'` / `'resolved'` / `'archived'`        |
-| created_at  | TEXT    | ISO-8601                                      |
-| updated_at  | TEXT    | ISO-8601                                      |
+| Kind     | Meaning                                                        |
+|----------|----------------------------------------------------------------|
+| `issue`  | A bug that was fixed                                           |
+| `spec`   | A specification or plan (open = planned, resolved = done)      |
+| `arch`   | An architectural decision, pattern, or structural change       |
+| `update` | A feature implementation or improvement to existing functionality |
+
+| Column      | Type    | Notes                                                       |
+|-------------|---------|-------------------------------------------------------------|
+| id          | INTEGER | PK, autoincrement                                           |
+| project_id  | INTEGER | FK → project.id                                             |
+| kind        | TEXT    | `'issue'` / `'spec'` / `'arch'` / `'update'`               |
+| title       | TEXT    | Short summary                                               |
+| body        | TEXT    | Full description / details                                  |
+| status      | TEXT    | `'open'` / `'resolved'` / `'archived'`                      |
+| created_at  | TEXT    | ISO-8601                                                    |
+| updated_at  | TEXT    | ISO-8601                                                    |
 
 ### 3.3 `record_embedding` (virtual — vec0)
 
@@ -107,7 +114,7 @@ Each result includes the originating `project` name/ID for disambiguation.
 | Parameter    | Type    | Required | Default | Description                       |
 |--------------|---------|----------|---------|-----------------------------------|
 | query        | string  | yes      | —       | Natural language search query     |
-| kind         | string  | no       | both    | Filter: `'issue'`, `'spec'`, or `'all'` |
+| kind         | string  | no       | all     | Filter: `'issue'`, `'spec'`, `'arch'`, `'update'`, or `'all'` |
 | project      | string  | no       | current | Project name to boost; `'*'` for equal weight across all projects |
 | limit        | integer | no       | 5       | Max results returned              |
 
@@ -123,7 +130,7 @@ If `id` is provided, update; otherwise insert with deduplication (see below).
 | Parameter  | Type    | Required | Description              |
 |------------|---------|----------|--------------------------|
 | id         | integer | no       | Record ID to update      |
-| kind       | string  | yes      | `'issue'` or `'spec'`   |
+| kind       | string  | yes      | `'issue'`, `'spec'`, `'arch'`, or `'update'` |
 | title      | string  | yes      | Short summary            |
 | body       | string  | no       | Full description         |
 | status     | string  | no       | Defaults to `'open'`     |
@@ -209,7 +216,7 @@ When Claude finishes responding, a `Stop` hook evaluates whether the conversatio
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Review the conversation. If a bug was fixed, output JSON: {\"action\":\"upsert\",\"kind\":\"issue\",\"title\":\"...\",\"body\":\"...\",\"status\":\"resolved\"}. If a feature or improvement was made, output JSON: {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"...\"}. If neither, output {\"action\":\"none\"}.",
+            "prompt": "Review the conversation. Bug fix: kind=issue. Architectural change: kind=arch. Feature update/improvement: kind=update. New plan/spec: kind=spec. Output JSON: {\"action\":\"upsert\",\"kind\":\"...\",\"title\":\"...\",\"body\":\"...\",\"status\":\"resolved\"}. If none apply: {\"action\":\"none\"}.",
             "timeout": 30
           }
         ]
@@ -225,8 +232,13 @@ A follow-up command hook parses this output and calls `mcp__dude__upsert_record`
 
 ### 5.3 Classification Logic
 
-"Fix" vs "improvement" is determined by the Stop hook's LLM prompt evaluation — not by heuristics.
-The prompt asks Claude to classify the work that was done.
+The work classification (issue, spec, arch, or update) is determined by the Stop hook's LLM prompt evaluation — not by heuristics.
+The prompt asks Claude to classify the work into one of four kinds:
+- **issue**: a bug was fixed
+- **spec**: a plan or specification was created (or completed)
+- **arch**: an architectural decision, new pattern, or structural reorganization
+- **update**: a feature was added or improved
+
 This keeps the logic simple and leverages the model's understanding of the conversation.
 
 The same fallback applies here: if classification fails, the hook skips silently and logs a worklog message.

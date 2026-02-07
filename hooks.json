@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Review the conversation. If a bug was fixed, output JSON: {\"action\":\"upsert\",\"kind\":\"issue\",\"title\":\"...\",\"body\":\"...\",\"status\":\"resolved\"}. If a feature or improvement was made (including completing a plan), output JSON: {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"<summary of what was implemented>\",\"status\":\"resolved\"}. If a plan was created but not yet implemented, output {\"action\":\"none\"}. If neither applies, output {\"action\":\"none\"}. Output ONLY the JSON, no other text.",
+            "prompt": "Review the conversation. Classify the work and output ONE JSON object. Bug fix: {\"action\":\"upsert\",\"kind\":\"issue\",\"title\":\"...\",\"body\":\"...\",\"status\":\"resolved\"}. Architectural change (new patterns, structural reorganization, API design): {\"action\":\"upsert\",\"kind\":\"arch\",\"title\":\"...\",\"body\":\"<describe the architectural decision and rationale>\",\"status\":\"resolved\"}. Feature update or improvement to existing functionality: {\"action\":\"upsert\",\"kind\":\"update\",\"title\":\"...\",\"body\":\"<summary of what was changed>\",\"status\":\"resolved\"}. New specification or plan (not yet implemented): {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"<plan details>\",\"status\":\"open\"}. Completing a planned spec: {\"action\":\"upsert\",\"kind\":\"spec\",\"title\":\"...\",\"body\":\"<summary of what was implemented>\",\"status\":\"resolved\"}. If none apply, output {\"action\":\"none\"}. Output ONLY the JSON, no other text.",
             "timeout": 30
           },
           {

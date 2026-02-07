@@ -54,6 +54,8 @@
     }
     .badge-issue { background: #fce4e4; color: #c62828; }
     .badge-spec { background: #e3f2fd; color: #1565c0; }
+    .badge-arch { background: #fff3e0; color: #e65100; }
+    .badge-update { background: #e8f5e9; color: #1b5e20; }
     .badge-open { background: #e8f5e9; color: #2e7d32; }
     .badge-resolved { background: #f3e5f5; color: #6a1b9a; }
     .badge-archived { background: #eceff1; color: #546e7a; }
@@ -110,6 +112,8 @@
           <option value="">All kinds</option>
           <option value="issue">Issues</option>
           <option value="spec">Specs</option>
+          <option value="arch">Arch</option>
+          <option value="update">Updates</option>
         </select>
         <select id="statusFilter">
           <option value="">All statuses</option>
@@ -208,6 +212,8 @@
           <select id="editKind">
             <option value="issue" ${record.kind === 'issue' ? 'selected' : ''}>Issue</option>
             <option value="spec" ${record.kind === 'spec' ? 'selected' : ''}>Spec</option>
+            <option value="arch" ${record.kind === 'arch' ? 'selected' : ''}>Arch</option>
+            <option value="update" ${record.kind === 'update' ? 'selected' : ''}>Update</option>
           </select>
         </div>
         <div class="form-group">
@@ -246,6 +252,8 @@
           <select id="editKind">
             <option value="issue">Issue</option>
             <option value="spec">Spec</option>
+            <option value="arch">Arch</option>
+            <option value="update">Update</option>
           </select>
         </div>
         <div class="form-group">
