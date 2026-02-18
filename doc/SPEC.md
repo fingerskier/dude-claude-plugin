@@ -11,8 +11,8 @@ Companion **hooks** (configured in `.claude/settings.json`) fire at session boun
 
 ```
 Claude CLI
-  ├── MCP stdio server  (tools: search, CRUD)
-  │     └── SQLite + vec0 extension
+  ├── MCP stdio server  (tools: search, CRUD, sync)
+  │     └── libsql (local-first, optional Turso cloud sync)
   └── Hooks
         ├── UserPromptSubmit  → auto-retrieve relevant records (command hook)
         ├── Stop              → classify & persist via agent hook → MCP upsert
@@ -25,25 +25,29 @@ Claude CLI
 |-----------------|-----------------------|----------------------------------------|
 | Runtime         | Node.js >=18          | Claude CLI ecosystem is JS/TS-centric  |
 | Language        | Plain JavaScript (ESM)| Zero build step; ultra-minimal goal    |
-| Database        | better-sqlite3        | Synchronous, zero-config, single-file  |
-| Vector search   | sqlite-vec (vec0)     | SQLite extension; no external service  |
+| Database        | `@libsql/client`      | Async, SQLite-compatible, native vector columns, optional Turso cloud sync |
+| Vector search   | `F32_BLOB(384)` + `vector_top_k` | Native libsql vector index; no separate extension |
 | Embeddings      | Local: all-MiniLM-L6-v2 via `@huggingface/transformers` | Offline, fast, 384-dim |
 | MCP SDK         | `@modelcontextprotocol/sdk` | Official MCP server library   |
 | Web UI          | Bare `http` module + static HTML | No framework; minimal       |
+| Legacy support  | `better-sqlite3` + `sqlite-vec` | For one-time auto-migration from old DB format |
 
 ### Dependency Summary
 
 ```
 dependencies:
   @modelcontextprotocol/sdk
-  better-sqlite3
-  sqlite-vec
+  @libsql/client              # primary database driver (async, native vectors)
   @huggingface/transformers   # local ONNX embedding generation
+  better-sqlite3              # legacy migration only
+  sqlite-vec                  # legacy migration only
+  zod                         # schema validation
 ```
 
 ## 3. Data Model
 
-Single SQLite file per user: `~/.dude-claude/dude.db`
+Single libsql file per user: `~/.dude-claude/dude-libsql.db`
+(Legacy users are auto-migrated from `~/.dude-claude/dude.db` on first run; the old file is renamed to `dude.db.backup`.)
 
 ### 3.1 `project`
 
@@ -77,20 +81,21 @@ All share one table to keep queries and embeddings uniform.
 | created_at  | TEXT    | ISO-8601                                                    |
 | updated_at  | TEXT    | ISO-8601                                                    |
 
-### 3.3 `record_embedding` (virtual — vec0)
+### 3.3 Embeddings
 
-| Column      | Type         | Notes                          |
-|-------------|--------------|--------------------------------|
-| record_id   | INTEGER      | FK → record.id                 |
-| embedding   | FLOAT[384]   | all-MiniLM-L6-v2 output        |
+Embeddings are stored as a native `F32_BLOB(384)` column directly on the `record` table (no separate virtual table). A vector index enables KNN search:
 
-Created via:
 ```sql
-CREATE VIRTUAL TABLE record_embedding USING vec0(
-  record_id INTEGER PRIMARY KEY,
-  embedding FLOAT[384]
-);
+-- Column on record table:
+embedding  F32_BLOB(384)
+
+-- Vector index:
+CREATE INDEX idx_record_embedding
+  ON record(libsql_vector_idx(embedding, 'metric=cosine'));
 ```
+
+**Insert format:** `vector('[1.0, 2.0, ...]')` — JSON string passed to the `vector()` SQL function.
+**Search:** `vector_top_k('idx_record_embedding', vector(?), k)` returns rowid matches; cosine similarity is computed application-side since `embed()` returns L2-normalized vectors (dot product = cosine similarity).
 
 ### 3.4 Project Identification
 
@@ -171,6 +176,19 @@ Deletes record and its embedding.
 ### 4.6 `list_projects`
 
 No parameters. Returns all known projects.
+
+### 4.7 `sync_status`
+
+Check cloud sync status and optionally trigger a manual sync.
+
+| Parameter      | Type    | Required | Default | Description                           |
+|----------------|---------|----------|---------|---------------------------------------|
+| trigger_sync   | boolean | no       | false   | If true, trigger an immediate sync    |
+
+Returns: `{ enabled, syncUrl?, syncInterval?, sync?: { synced, message } }`
+
+When cloud sync is not configured (`DUDE_TURSO_URL` not set), returns `{ enabled: false }`.
+When `trigger_sync` is true and sync is enabled, performs an immediate sync and includes the result.
 
 ## 5. Hooks
 
@@ -277,6 +295,8 @@ A minimal local HTTP server for manual CRUD when Claude CLI isn't running.
 | PUT    | `/api/records/:id`       | Update record             |
 | DELETE | `/api/records/:id`       | Delete record             |
 | POST   | `/api/search`            | Semantic search           |
+| GET    | `/api/sync-status`       | Cloud sync status         |
+| POST   | `/api/sync`              | Trigger manual sync       |
 
 The SPA is a single `index.html` file served from `web/index.html` using the built-in `http` module. No bundler.
 
@@ -288,44 +308,75 @@ dude-claude-plugin/
   bin/
     dude-claude.js          # CLI entry point (MCP server + serve command)
   src/
-    server.js               # MCP server setup + tool handlers
-    db.js                   # SQLite schema init, migration runner, query helpers
-    embed.js                # Embedding generation
-    web.js                  # HTTP server for manual CRUD
+    server.js               # MCP server setup + 7 tool handlers
+    db.js                   # Database factory — auto-detects, migrates, returns adapter
+    db-adapter.js           # Abstract DbAdapter interface (async)
+    db-libsql.js            # LibsqlAdapter — primary backend (@libsql/client)
+    db-sqlite-vec.js        # SqliteVecAdapter — legacy backend (for migration)
+    embed.js                # Embedding generation (all-MiniLM-L6-v2)
+    web.js                  # HTTP server for manual CRUD + sync endpoints
     migrations/
-      001-initial.js        # Creates project, record, record_embedding tables
+      001-initial.js        # Legacy: creates project, record, record_embedding tables
+      002-expand-kinds.js   # Legacy: adds 'arch' and 'update' kinds
+  scripts/
+    migrate-to-libsql.js    # One-time data migration: sqlite-vec → libsql
   web/
     index.html              # Single-page CRUD UI
   hooks/
     auto-retrieve.js        # UserPromptSubmit hook script
     auto-persist.js         # Stop hook follow-up script
+    auto-persist-plan.js    # SubagentStop hook — persist plans as specs
   doc/
     SPEC.md                 # This file
+    LIBSQL_PLAN.md          # Migration plan (all phases complete)
   .mcp.json                 # MCP server registration for Claude CLI
 ```
 
-## 8. Schema Migration
+## 8. Schema & Database Migration
 
-Schema changes are handled via **versioned migration scripts** stored in `src/migrations/` (e.g., `001-initial.js`, `002-add-index.js`).
+### 8.1 libsql Schema (current)
 
-On startup, `db.js`:
-1. Ensures a `schema_version` table exists (`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)`).
-2. Reads the current version (or 0 if the table is empty).
-3. Runs any migration scripts with a version number greater than the current version, in order.
-4. Updates `schema_version` to the latest version after all pending migrations succeed.
+The libsql backend (`src/db-libsql.js`) creates the schema on first run via `_runSchema()`. Tables are created with `IF NOT EXISTS`, so the schema is idempotent. No versioned migrations are needed — the schema is defined inline.
 
-Migrations run inside a transaction so a failed migration leaves the database unchanged.
+### 8.2 Legacy Migration (sqlite-vec → libsql)
 
-### File Layout Addition
+On startup, `src/db.js` detects whether a legacy `dude.db` exists:
+1. If `dude.db` exists and `dude-libsql.db` does not: auto-migrate via `scripts/migrate-to-libsql.js`.
+2. Rename `dude.db` to `dude.db.backup` after successful migration.
+3. Always return `LibsqlAdapter` pointing to `dude-libsql.db`.
 
-```
-src/
-  migrations/
-    001-initial.js        # Creates project, record, record_embedding tables
-    002-...               # Future schema changes
-```
+The migration script handles:
+- Project table preservation (including IDs)
+- Record migration with embedding round-trip (`Float32Array` → JSON → `vector()`)
+- Orphaned records (missing embeddings)
+- Empty databases
 
-## 9. Configuration
+### 8.3 Legacy Schema Migrations (historical)
+
+The old `better-sqlite3` backend used versioned migration scripts in `src/migrations/`:
+- `001-initial.js` — project, record, record_embedding tables
+- `002-expand-kinds.js` — added 'arch' and 'update' kinds
+
+These are retained for legacy migration support but are not used by the libsql backend.
+
+## 9. Cloud Sync (optional)
+
+The plugin is local-first by default. When Turso environment variables are set, `@libsql/client` maintains a local embedded replica that auto-syncs with a Turso cloud database.
+
+| Env variable | Description |
+|---|---|
+| `DUDE_TURSO_URL` | Turso database URL (e.g. `libsql://your-db.turso.io`) |
+| `DUDE_TURSO_TOKEN` | Turso auth token |
+| `DUDE_SYNC_INTERVAL` | Auto-sync interval in ms (default: `60000`) |
+
+**Behavior:**
+- Without env vars: fully offline, no cloud dependency.
+- With env vars: local DB syncs bidirectionally with Turso on the configured interval.
+- Manual sync available via `sync_status` MCP tool (`trigger_sync: true`) or `POST /api/sync`.
+- Sync status visible via `sync_status` MCP tool or `GET /api/sync-status`.
+- On startup, the log line includes the sync URL when configured.
+
+## 10. Configuration
 
 ### `.mcp.json` (project-scoped, committed)
 
