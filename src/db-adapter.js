@@ -78,6 +78,22 @@ export class DbAdapter {
   }
 
   /**
+   * Get cloud sync status.
+   * @returns {Promise<{ enabled: boolean, syncUrl?: string, syncInterval?: number }>}
+   */
+  async syncStatus() {
+    return { enabled: false };
+  }
+
+  /**
+   * Trigger a manual cloud sync (no-op if sync is not configured).
+   * @returns {Promise<{ synced: boolean, message: string }>}
+   */
+  async sync() {
+    return { synced: false, message: 'Cloud sync not configured' };
+  }
+
+  /**
    * Close the database connection.
    */
   async close() {

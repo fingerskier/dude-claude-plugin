@@ -14,6 +14,8 @@ const mockDb = {
   list: vi.fn(async () => []),
   delete: vi.fn(async (id) => id !== 999),
   listProjects: vi.fn(async () => [{ id: 1, name: 'test-project' }]),
+  syncStatus: vi.fn(async () => ({ enabled: false })),
+  sync: vi.fn(async () => ({ synced: false, message: 'Cloud sync not configured' })),
 };
 
 vi.mock('../src/db.js', () => ({
@@ -61,8 +63,8 @@ describe('server.js', () => {
     expect(typeof serverModule.startServer).toBe('function');
   });
 
-  it('should register all 6 MCP tools', () => {
-    expect(registeredTools).toHaveLength(6);
+  it('should register all 7 MCP tools', () => {
+    expect(registeredTools).toHaveLength(7);
     const names = registeredTools.map(t => t.name);
     expect(names).toContain('search');
     expect(names).toContain('upsert_record');
@@ -70,6 +72,7 @@ describe('server.js', () => {
     expect(names).toContain('list_records');
     expect(names).toContain('delete_record');
     expect(names).toContain('list_projects');
+    expect(names).toContain('sync_status');
   });
 
   it('should initialize DB before registering tools', async () => {
@@ -160,6 +163,30 @@ describe('server.js', () => {
       expect(result.content[0].type).toBe('text');
       const data = JSON.parse(result.content[0].text);
       expect(Array.isArray(data)).toBe(true);
+    });
+
+    it('sync_status should return sync status', async () => {
+      const result = await toolHandlers.sync_status({});
+      expect(result.content[0].type).toBe('text');
+      const data = JSON.parse(result.content[0].text);
+      expect(data.enabled).toBe(false);
+    });
+
+    it('sync_status should trigger sync when requested', async () => {
+      mockDb.syncStatus.mockResolvedValueOnce({ enabled: true, syncUrl: 'libsql://test.turso.io' });
+      mockDb.sync.mockResolvedValueOnce({ synced: true, message: 'Synced with libsql://test.turso.io' });
+
+      const result = await toolHandlers.sync_status({ trigger_sync: true });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.enabled).toBe(true);
+      expect(data.sync.synced).toBe(true);
+    });
+
+    it('sync_status should not trigger sync when disabled', async () => {
+      const result = await toolHandlers.sync_status({ trigger_sync: true });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.enabled).toBe(false);
+      expect(data.sync).toBeUndefined();
     });
   });
 });

@@ -401,6 +401,40 @@ describe('LibsqlAdapter', () => {
   });
 
   // -----------------------------------------------------------------------
+  // Cloud sync
+  // -----------------------------------------------------------------------
+
+  describe('syncStatus', () => {
+    it('should report sync as disabled when no sync URL configured', async () => {
+      const status = await adapter.syncStatus();
+      expect(status.enabled).toBe(false);
+      expect(status.syncUrl).toBeUndefined();
+    });
+
+    it('should report sync as enabled when syncUrl is in config', async () => {
+      const syncAdapter = new LibsqlAdapter({
+        url: 'file::memory:',
+        syncUrl: 'libsql://test-db.turso.io',
+        authToken: 'test-token',
+        syncInterval: 30000,
+      });
+      // Don't init (would try to connect to Turso), just test config reading
+      const status = await syncAdapter.syncStatus();
+      expect(status.enabled).toBe(true);
+      expect(status.syncUrl).toBe('libsql://test-db.turso.io');
+      expect(status.syncInterval).toBe(30000);
+    });
+  });
+
+  describe('sync', () => {
+    it('should return not-configured message when sync is disabled', async () => {
+      const result = await adapter.sync();
+      expect(result.synced).toBe(false);
+      expect(result.message).toContain('not configured');
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // Embedding round-trip
   // -----------------------------------------------------------------------
 

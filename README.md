@@ -20,7 +20,7 @@ claude plugin install dude-claude-plugin@fingerskier-plugins
 
 ### MCP server only (via npx)
 
-If you just want the 6 MCP tools without auto-hooks:
+If you just want the 7 MCP tools without auto-hooks:
 
 ```bash
 claude mcp add dude -- npx dude-claude-plugin mcp
@@ -37,12 +37,13 @@ claude mcp add dude -- dude-claude mcp
 
 | Component | Description |
 |-----------|-------------|
-| **MCP server** | 6 tools: `search`, `upsert_record`, `get_record`, `list_records`, `delete_record`, `list_projects` |
+| **MCP server** | 7 tools: `search`, `upsert_record`, `get_record`, `list_records`, `delete_record`, `list_projects`, `sync_status` |
 | **Auto-retrieve hook** | On each prompt, searches memory for relevant context and injects it |
 | **Auto-persist hook** | After each response, classifies the work and saves issues/specs |
 | **Web UI** | Local dashboard at `http://127.0.0.1:3456` for manual CRUD |
-| **Storage** | SQLite + sqlite-vec at `~/.dude-claude/dude.db` |
+| **Storage** | libsql (SQLite-compatible) at `~/.dude-claude/dude-libsql.db` |
 | **Embeddings** | Local all-MiniLM-L6-v2 via @huggingface/transformers (no API keys) |
+| **Cloud sync** | Optional Turso cloud sync via environment variables |
 
 ## How it works
 
@@ -70,6 +71,19 @@ Opens a local dashboard on port 3456 for browsing and editing projects, issues, 
 |---|---|---|
 | `DUDE_PORT` | `3456` | Web UI port |
 | `DUDE_CONTEXT_LIMIT` | `5` | Max records injected per prompt |
+| `DUDE_RECENCY_HOURS` | `1` | Lookback window for recent records |
+
+### Cloud Sync (optional)
+
+The plugin works fully offline by default. To enable cloud sync with [Turso](https://turso.tech), set these environment variables:
+
+| Env variable | Description |
+|---|---|
+| `DUDE_TURSO_URL` | Turso database URL (e.g. `libsql://your-db.turso.io`) |
+| `DUDE_TURSO_TOKEN` | Turso auth token |
+| `DUDE_SYNC_INTERVAL` | Sync interval in ms (default: `60000`) |
+
+When configured, `@libsql/client` maintains a local embedded replica that auto-syncs with Turso. You can also trigger a manual sync via the `sync_status` MCP tool or `POST /api/sync`.
 
 ## Requirements
 

@@ -2,19 +2,21 @@
 
 Migration plan for replacing `better-sqlite3` + `sqlite-vec` with `@libsql/client`, gaining native vector columns, async API, and optional Turso cloud sync.
 
-## Current State
+## Current State ✅
 
 | Component | Technology | Location |
 |-----------|-----------|----------|
-| Driver | `better-sqlite3` (sync) | `src/db.js` |
-| Vector search | `sqlite-vec` vec0 virtual table | `src/migrations/001-initial.js` |
+| Driver | `@libsql/client` (async) | `src/db-libsql.js` |
+| Vector search | `F32_BLOB(384)` native column + `vector_top_k` | `src/db-libsql.js` |
 | Embedding model | `Xenova/all-MiniLM-L6-v2` (384-dim) | `src/embed.js` — unchanged by migration |
-| DB file | `~/.dude-claude/dude.db` | `src/db.js:15` |
+| DB file | `~/.dude-claude/dude-libsql.db` | `src/db-libsql.js:9` |
+| Legacy driver | `better-sqlite3` + `sqlite-vec` (for migration only) | `src/db-sqlite-vec.js` |
+| DB factory | Auto-detects and migrates | `src/db.js` |
 
 ### Current Schema
 
 ```sql
--- src/migrations/001-initial.js
+-- src/db-libsql.js _runSchema()
 CREATE TABLE project (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL UNIQUE,
@@ -29,35 +31,47 @@ CREATE TABLE record (
   title      TEXT NOT NULL,
   body       TEXT NOT NULL DEFAULT '',
   status     TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved','archived')),
+  embedding  F32_BLOB(384),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE INDEX idx_record_project_kind ON record(project_id, kind);
+CREATE INDEX idx_record_embedding ON record(libsql_vector_idx(embedding, 'metric=cosine'));
+```
+
+### Current Query Patterns (src/db-libsql.js)
+
+**Insert** — single statement with `vector()` SQL function:
+```js
+await db.execute({
+  sql: `INSERT INTO record (project_id, kind, title, body, status, embedding, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, vector(?), ?, ?)`,
+  args: [proj, kind, title, body, status, embJson, now, now],
+});
+```
+
+**KNN search** — `vector_top_k` with application-side similarity:
+```sql
+SELECT r.*, r.embedding, p.name AS project
+FROM vector_top_k('idx_record_embedding', vector(?), ?) AS v
+JOIN record r ON r.rowid = v.id
+JOIN project p ON r.project_id = p.id
+```
+
+**Embedding format** — `Float32Array` → JSON string via `_embeddingToJson()`:
+```js
+_embeddingToJson(embedding) { return JSON.stringify(Array.from(embedding)); }
+```
+
+### Legacy Schema (pre-migration)
+
+```sql
+-- Original better-sqlite3 + sqlite-vec schema (kept for reference)
 CREATE VIRTUAL TABLE record_embedding USING vec0(
   record_id  INTEGER PRIMARY KEY,
   embedding  FLOAT[384] distance_metric=cosine
 );
-```
-
-### Current Query Patterns (src/db.js)
-
-**Insert** — two statements inside a transaction (`upsertRecord`, line ~290):
-```js
-d.prepare('INSERT INTO record ...').run(...);
-d.prepare('INSERT INTO record_embedding(record_id, embedding) VALUES (?, ?)').run(id, embeddingBuffer(embedding));
-```
-
-**KNN search** — vec0 MATCH operator (`searchRecords`, line ~214):
-```sql
-SELECT re.record_id, re.distance, r.*
-FROM record_embedding re
-JOIN record r ON r.id = re.record_id
-WHERE re.embedding MATCH ? AND k = ?
-```
-
-**Embedding format** — `Float32Array` → Node `Buffer` via `embeddingBuffer()` (line ~10):
-```js
-function embeddingBuffer(arr) { return Buffer.from(arr.buffer); }
 ```
 
 ---
@@ -82,11 +96,13 @@ The libsql approach is simpler — vectors live in the regular `record` table as
 Each phase is a standalone version bump. New users can start at any version.
 
 
-### Phase 1: Abstract the DB Layer (non-breaking)
+### Phase 1: Abstract the DB Layer (non-breaking) ✅
 
 **Goal:** Decouple all callers from `better-sqlite3` specifics so backends can be swapped without changing tool handlers, hooks, or the web server.
 
 **Version bump:** patch (no user-visible change)
+
+**Status:** COMPLETE — `src/db-adapter.js` base class created, `src/db-sqlite-vec.js` wraps legacy code, all callers use async adapter API.
 
 Create `src/db-adapter.js` — a base class that both backends implement:
 
@@ -123,11 +139,13 @@ Wrap the existing `better-sqlite3` + `sqlite-vec` code in `src/db-sqlite-vec.js`
 **Risk:** Low — pure refactor, same behavior.
 
 
-### Phase 2: Implement the libsql Backend
+### Phase 2: Implement the libsql Backend ✅
 
 **Goal:** Add `src/db-libsql.js` implementing `DbAdapter` with `@libsql/client`.
 
 **Version bump:** minor (new capability, not yet default)
+
+**Status:** COMPLETE — `src/db-libsql.js` fully implements `DbAdapter` with native `F32_BLOB(384)` columns, `vector_top_k` search, application-side cosine similarity, and dedup logic.
 
 #### New Schema
 
@@ -218,11 +236,13 @@ const db = createClient({
 **Risk:** Low — new code, not yet wired in as default.
 
 
-### Phase 3: Data Migration Script
+### Phase 3: Data Migration Script ✅
 
 **Goal:** Migrate existing `~/.dude-claude/dude.db` data (including embeddings) to the libsql schema.
 
 **Version bump:** included with Phase 4 release
+
+**Status:** COMPLETE — `scripts/migrate-to-libsql.js` handles full data migration including embedding round-trip (Float32Array → JSON → vector()). Tested with empty DBs, orphaned records, and embedding fidelity checks.
 
 ```js
 // scripts/migrate-to-libsql.js
@@ -283,11 +303,13 @@ async function migrate(oldDbPath, newDbPath) {
 **Risk:** Medium — data fidelity must be validated.
 
 
-### Phase 4: Backend Selection + Auto-Migration
+### Phase 4: Backend Selection + Auto-Migration ✅
 
 **Goal:** On startup, detect which DB exists and choose the right backend. Auto-migrate existing users.
 
 **Version bump:** major (breaking change to internal storage format)
+
+**Status:** COMPLETE — `src/db.js` factory auto-detects old DB, runs migration, renames to `.backup`, and always returns `LibsqlAdapter`. Handles migration failures with cleanup and retry on next startup.
 
 ```js
 // src/db.js (factory)
@@ -325,11 +347,13 @@ export async function initDb(config) {
 **Risk:** Medium — must handle edge cases (locked DB, partial migration, disk space).
 
 
-### Phase 5: Cloud Sync (opt-in)
+### Phase 5: Cloud Sync (opt-in) ✅
 
 **Goal:** Optional Turso cloud sync via environment variables.
 
 **Version bump:** minor (opt-in feature)
+
+**Status:** COMPLETE — Cloud sync wired up in `_createClient()`, manual `sync()` method added, `sync_status` MCP tool and `/api/sync-status` endpoint available for visibility.
 
 ```bash
 # Environment variables
@@ -340,7 +364,14 @@ DUDE_SYNC_INTERVAL=60000  # ms, default 1 min
 
 When configured, `@libsql/client` automatically syncs the local embedded replica with Turso. The plugin works 100% offline by default; cloud sync is a bonus.
 
-No code changes beyond what Phase 2 already wires up — the `syncUrl` and `authToken` are already passed to `createClient()`.
+#### Implementation Details
+
+The `_createClient()` method in `src/db-libsql.js` passes `syncUrl`, `authToken`, and `syncInterval` to `createClient()` when `DUDE_TURSO_URL` is set. Additional features:
+
+- **`sync()` method** on `LibsqlAdapter` — triggers an immediate manual sync and returns stats
+- **`syncStatus()` method** — returns whether cloud sync is configured and connection info
+- **`sync_status` MCP tool** — lets Claude check sync configuration status
+- **`/api/sync-status` endpoint** — exposes sync status to the web dashboard
 
 **Risk:** Low — only activates with explicit env vars.
 
@@ -361,7 +392,7 @@ No code changes beyond what Phase 2 already wires up — the `syncUrl` and `auth
 
 The `@libsql/client` npm package bundles the libsql native binary — no separate extension loading. This simplifies installation since `sqlite-vec` sometimes has platform-specific build issues with native compilation.
 
-During Phase 1–3 (both backends coexist), all four packages are present. After Phase 4 ships and the sqlite-vec backend is removed, the old two are dropped.
+**Current state:** Both old and new packages remain in `dependencies` to support auto-migration from legacy DBs. The `better-sqlite3` and `sqlite-vec` packages are only loaded on-demand during migration (dynamic import in `src/db.js`). They can be moved to `optionalDependencies` or removed once the legacy migration window closes.
 
 ---
 
@@ -373,7 +404,7 @@ During Phase 1–3 (both backends coexist), all four packages are present. After
 | 2. Implement libsql backend | minor | Zero — not yet active | Low | **DONE** |
 | 3. Migration script | (bundled with 4) | Zero — not yet wired up | Medium | **DONE** |
 | 4. Auto-migration on upgrade | **major** | One-time pause on first run; old DB kept as `.backup` | Medium | **DONE** |
-| 5. Cloud sync opt-in | minor | Zero — only activates with env vars | Low | TODO |
+| 5. Cloud sync opt-in | minor | Zero — only activates with env vars | Low | **DONE** |
 
 ---
 
