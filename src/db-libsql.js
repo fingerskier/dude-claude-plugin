@@ -35,7 +35,9 @@ export class LibsqlAdapter extends DbAdapter {
     const projectName = this._detectProject();
     this.currentProject = await this._upsertProject(projectName);
     await this._migrateProjectNames(projectName);
-    console.error(`[dude] LibSQL DB ready — project "${this.currentProject.name}" (id=${this.currentProject.id})`);
+    const syncInfo = await this.syncStatus();
+    const syncMsg = syncInfo.enabled ? ` | cloud sync → ${syncInfo.syncUrl}` : '';
+    console.error(`[dude] LibSQL DB ready — project "${this.currentProject.name}" (id=${this.currentProject.id})${syncMsg}`);
   }
 
   _ensureDataDir() {
@@ -367,6 +369,31 @@ export class LibsqlAdapter extends DbAdapter {
     });
 
     return this.get(Number(result.lastInsertRowid));
+  }
+
+  async syncStatus() {
+    const syncUrl = this.config.syncUrl || process.env.DUDE_TURSO_URL || null;
+    const syncInterval = this.config.syncInterval
+      || process.env.DUDE_SYNC_INTERVAL
+      || null;
+    return {
+      enabled: !!syncUrl,
+      ...(syncUrl ? { syncUrl } : {}),
+      ...(syncInterval ? { syncInterval: parseInt(syncInterval) } : {}),
+    };
+  }
+
+  async sync() {
+    const status = await this.syncStatus();
+    if (!status.enabled) {
+      return { synced: false, message: 'Cloud sync not configured. Set DUDE_TURSO_URL and DUDE_TURSO_TOKEN to enable.' };
+    }
+    try {
+      await this.db.sync();
+      return { synced: true, message: `Synced with ${status.syncUrl}` };
+    } catch (err) {
+      return { synced: false, message: `Sync failed: ${err.message}` };
+    }
   }
 
   async close() {

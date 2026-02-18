@@ -151,6 +151,31 @@ export async function startServer() {
     },
   );
 
+  // ---- sync_status ----
+  server.tool(
+    'sync_status',
+    'Check cloud sync status and optionally trigger a manual sync.',
+    {
+      trigger_sync: z.boolean().optional().describe('If true, trigger an immediate sync'),
+    },
+    async ({ trigger_sync }) => {
+      try {
+        const status = await db.syncStatus();
+        let result = { ...status };
+        if (trigger_sync && status.enabled) {
+          const syncResult = await db.sync();
+          result.sync = syncResult;
+        }
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        console.error('[dude] sync_status failed:', err);
+        return { content: [{ type: 'text', text: `Error in sync_status: ${err.message}` }], isError: true };
+      }
+    },
+  );
+
   // Start transport
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -61,6 +61,16 @@ async function handleRequest(db, req, res) {
 
   // --- API routes ---
 
+  // GET /api/sync-status
+  if (method === 'GET' && path === '/api/sync-status') {
+    return json(res, await db.syncStatus());
+  }
+
+  // POST /api/sync
+  if (method === 'POST' && path === '/api/sync') {
+    return json(res, await db.sync());
+  }
+
   // GET /api/projects
   if (method === 'GET' && path === '/api/projects') {
     return json(res, await db.listProjects());
