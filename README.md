@@ -63,7 +63,17 @@ npx dude-claude-plugin serve
 dude-claude serve
 ```
 
-Opens a local dashboard on port 3456 for browsing and editing projects, issues, and specifications.
+Opens a local dashboard at `http://127.0.0.1:3456` (auto-opens in your browser). The UI has two panels: a sidebar listing records with filters, and a main panel for viewing and editing.
+
+**What you can do:**
+
+- **Project selector** — filter records by project or view all projects at once
+- **Semantic search** — type in the search bar to find records by meaning, not just keywords (results ranked by similarity)
+- **Filter by kind** — narrow to issues, specs, arch decisions, updates, or tests
+- **Filter by status** — open, resolved, archived, active, or inactive
+- **Create / edit / delete** — click "+ New" to add a record, click any record to edit it, or delete from the detail view
+
+Set `DUDE_PORT` to change the default port (see [Configuration](#configuration)).
 
 ## Configuration
 

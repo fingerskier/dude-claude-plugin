@@ -146,9 +146,9 @@ If `id` is provided, update; otherwise insert with deduplication (see below).
 
 On upsert the server:
 1. Generates an embedding from `title + ' ' + body`.
-2. **Deduplication**: If no `id` is provided, query `record_embedding` for existing records in the same project and `kind` whose embedding distance is below a configurable threshold (default cosine distance ≤ 0.15).  If a close match exists, treat the operation as an update of that record instead of creating a duplicate.
+2. **Deduplication**: If no `id` is provided, search the `record` table's `embedding` column for existing records in the same project and `kind` whose cosine distance is below a configurable threshold (default ≤ 0.15, i.e. similarity ≥ 0.85).  If a close match exists, treat the operation as an update of that record instead of creating a duplicate.
 3. Writes (insert or update) the record row.
-4. Upserts into `record_embedding`.
+4. Writes the record row with the embedding column.
 
 ### 4.3 `get_record`
 
@@ -332,8 +332,7 @@ dude-claude-plugin/
     auto-persist-plan.js    # SubagentStop hook — persist plans as specs
   doc/
     SPEC.md                 # This file
-    LIBSQL_PLAN.md          # Migration plan (all phases complete)
-  .mcp.json                 # MCP server registration for Claude CLI
+.mcp.json                 # MCP server registration for Claude CLI
 ```
 
 ## 8. Schema & Database Migration
