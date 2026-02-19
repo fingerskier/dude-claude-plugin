@@ -1,6 +1,6 @@
 import { createClient } from '@libsql/client';
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { DbAdapter } from './db-adapter.js';
@@ -36,17 +36,23 @@ export class LibsqlAdapter extends DbAdapter {
     if (this._hasSyncConfig()) {
       try {
         this.db = this._createClient();  // tries sync-enabled client
+        await this._runSchema();
       } catch (err) {
-        console.error(`[dude] Cloud sync connection failed: ${err.message}`);
-        console.error('[dude] Falling back to local-only mode.');
+        // Close the bad client if it was created
+        if (this.db) try { this.db.close(); } catch {}
         this._syncError = err.message;
+        this._logToFile(`Cloud sync failed: ${err.message}\n${err.stack}`);
+        console.error(`[dude] Cloud sync failed: ${err.message}`);
+        console.error('[dude] Falling back to local-only mode. Details in ~/.dude-claude/dude.log');
+        // Recreate with local-only client
         this.db = this._createLocalOnlyClient();
+        await this._runSchema();
       }
     } else {
       this.db = this._createLocalOnlyClient();
+      await this._runSchema();
     }
 
-    await this._runSchema();
     const projectName = this._detectProject();
     this.currentProject = await this._upsertProject(projectName);
     await this._migrateProjectNames(projectName);
@@ -64,6 +70,14 @@ export class LibsqlAdapter extends DbAdapter {
     if (!existsSync(DATA_DIR)) {
       mkdirSync(DATA_DIR, { recursive: true });
     }
+  }
+
+  _logToFile(message) {
+    try {
+      const logPath = join(DATA_DIR, 'dude.log');
+      const timestamp = new Date().toISOString();
+      appendFileSync(logPath, `[${timestamp}] ${message}\n`);
+    } catch { /* never let logging crash the server */ }
   }
 
   _hasSyncConfig() {
