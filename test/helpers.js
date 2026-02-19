@@ -30,10 +30,10 @@ export function createTestDb() {
     CREATE TABLE record (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-      kind       TEXT    NOT NULL CHECK (kind IN ('issue', 'spec', 'arch', 'update')),
+      kind       TEXT    NOT NULL,
       title      TEXT    NOT NULL,
       body       TEXT    NOT NULL DEFAULT '',
-      status     TEXT    NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved', 'archived')),
+      status     TEXT    NOT NULL DEFAULT 'open',
       created_at TEXT    NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );

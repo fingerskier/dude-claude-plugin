@@ -146,8 +146,8 @@ describe('LibsqlAdapter', () => {
       expect(updated.status).toBe('resolved');
     });
 
-    it('should support all valid kinds: issue, spec, arch, update', async () => {
-      for (const kind of ['issue', 'spec', 'arch', 'update']) {
+    it('should support all valid kinds: issue, spec, arch, update, test', async () => {
+      for (const kind of ['issue', 'spec', 'arch', 'update', 'test']) {
         const emb = fakeEmbedding();
         const record = await adapter.upsert(
           { kind, title: `${kind} record` },
@@ -157,8 +157,8 @@ describe('LibsqlAdapter', () => {
       }
     });
 
-    it('should support all valid statuses: open, resolved, archived', async () => {
-      for (const status of ['open', 'resolved', 'archived']) {
+    it('should support all valid statuses: open, resolved, archived, active, inactive', async () => {
+      for (const status of ['open', 'resolved', 'archived', 'active', 'inactive']) {
         const emb = fakeEmbedding();
         const record = await adapter.upsert(
           { kind: 'issue', title: `${status} record`, status },

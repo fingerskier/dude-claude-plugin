@@ -56,9 +56,12 @@
     .badge-spec { background: #e3f2fd; color: #1565c0; }
     .badge-arch { background: #fff3e0; color: #e65100; }
     .badge-update { background: #e8f5e9; color: #1b5e20; }
+    .badge-test { background: #e0f7fa; color: #00695c; }
     .badge-open { background: #e8f5e9; color: #2e7d32; }
     .badge-resolved { background: #f3e5f5; color: #6a1b9a; }
     .badge-archived { background: #eceff1; color: #546e7a; }
+    .badge-active { background: #e8f5e9; color: #2e7d32; }
+    .badge-inactive { background: #fce4e4; color: #c62828; }
     .main-panel {
       flex: 1; padding: 24px; overflow-y: auto;
     }
@@ -114,12 +117,15 @@
           <option value="spec">Specs</option>
           <option value="arch">Arch</option>
           <option value="update">Updates</option>
+          <option value="test">Tests</option>
         </select>
         <select id="statusFilter">
           <option value="">All statuses</option>
           <option value="open">Open</option>
           <option value="resolved">Resolved</option>
           <option value="archived">Archived</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
         </select>
         <button id="newBtn">+ New</button>
       </div>
@@ -214,6 +220,7 @@
             <option value="spec" ${record.kind === 'spec' ? 'selected' : ''}>Spec</option>
             <option value="arch" ${record.kind === 'arch' ? 'selected' : ''}>Arch</option>
             <option value="update" ${record.kind === 'update' ? 'selected' : ''}>Update</option>
+            <option value="test" ${record.kind === 'test' ? 'selected' : ''}>Test</option>
           </select>
         </div>
         <div class="form-group">
@@ -230,6 +237,8 @@
             <option value="open" ${record.status === 'open' ? 'selected' : ''}>Open</option>
             <option value="resolved" ${record.status === 'resolved' ? 'selected' : ''}>Resolved</option>
             <option value="archived" ${record.status === 'archived' ? 'selected' : ''}>Archived</option>
+            <option value="active" ${record.status === 'active' ? 'selected' : ''}>Active</option>
+            <option value="inactive" ${record.status === 'inactive' ? 'selected' : ''}>Inactive</option>
           </select>
         </div>
         <div class="btn-row">
@@ -254,6 +263,7 @@
             <option value="spec">Spec</option>
             <option value="arch">Arch</option>
             <option value="update">Update</option>
+            <option value="test">Test</option>
           </select>
         </div>
         <div class="form-group">
@@ -270,6 +280,8 @@
             <option value="open">Open</option>
             <option value="resolved">Resolved</option>
             <option value="archived">Archived</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
           </select>
         </div>
         <div class="btn-row">
