@@ -76,10 +76,10 @@ export class LibsqlAdapter extends DbAdapter {
         sql: `CREATE TABLE IF NOT EXISTS record (
           id         INTEGER PRIMARY KEY AUTOINCREMENT,
           project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-          kind       TEXT NOT NULL CHECK (kind IN ('issue','spec','arch','update')),
+          kind       TEXT NOT NULL,
           title      TEXT NOT NULL,
           body       TEXT NOT NULL DEFAULT '',
-          status     TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved','archived')),
+          status     TEXT NOT NULL DEFAULT 'open',
           embedding  F32_BLOB(384),
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -94,6 +94,50 @@ export class LibsqlAdapter extends DbAdapter {
               ON record(libsql_vector_idx(embedding, 'metric=cosine'))`,
       },
     ], 'write');
+
+    // Migrate existing databases that still have CHECK constraints
+    await this._migrateDropChecks();
+  }
+
+  /**
+   * Detect whether the record table was created with CHECK constraints
+   * (from a previous schema version) and recreate it without them.
+   * This is needed because SQLite/libsql doesn't support ALTER TABLE
+   * to drop constraints — the table must be recreated.
+   */
+  async _migrateDropChecks() {
+    const result = await this.db.execute(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name='record'",
+    );
+    const ddl = result.rows[0]?.sql || '';
+    if (!ddl.includes('CHECK')) return; // already migrated or fresh DB
+
+    await this.db.executeMultiple(`
+      CREATE TABLE record_new (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL,
+        title      TEXT NOT NULL,
+        body       TEXT NOT NULL DEFAULT '',
+        status     TEXT NOT NULL DEFAULT 'open',
+        embedding  F32_BLOB(384),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      INSERT INTO record_new SELECT * FROM record;
+
+      DROP TABLE record;
+
+      ALTER TABLE record_new RENAME TO record;
+
+      CREATE INDEX IF NOT EXISTS idx_record_project_kind
+        ON record(project_id, kind);
+
+      CREATE INDEX IF NOT EXISTS idx_record_embedding
+        ON record(libsql_vector_idx(embedding, 'metric=cosine'));
+    `);
+    console.error('[dude] Migrated record table: removed CHECK constraints');
   }
 
   _detectProject() {

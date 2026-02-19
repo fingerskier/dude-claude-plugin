@@ -175,26 +175,28 @@ describe('db.js', () => {
       expect(result.changes).toBe(0);
     });
 
-    it('should enforce kind CHECK constraint', () => {
+    it('should accept any kind value (no CHECK constraint)', () => {
+      // Constraints are enforced at the business logic layer, not the DB
       expect(() => {
         db.prepare(`
           INSERT INTO record (project_id, kind, title, status, created_at, updated_at)
           VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-        `).run(project.id, 'invalid_kind', 'Bad', 'open');
-      }).toThrow();
+        `).run(project.id, 'custom_kind', 'Test', 'open');
+      }).not.toThrow();
     });
 
-    it('should enforce status CHECK constraint', () => {
+    it('should accept any status value (no CHECK constraint)', () => {
+      // Constraints are enforced at the business logic layer, not the DB
       expect(() => {
         db.prepare(`
           INSERT INTO record (project_id, kind, title, status, created_at, updated_at)
           VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-        `).run(project.id, 'issue', 'Bad', 'invalid_status');
-      }).toThrow();
+        `).run(project.id, 'issue', 'Test', 'custom_status');
+      }).not.toThrow();
     });
 
-    it('should support all valid kinds: issue, spec, arch, update', () => {
-      for (const kind of ['issue', 'spec', 'arch', 'update']) {
+    it('should support all valid kinds: issue, spec, arch, update, test', () => {
+      for (const kind of ['issue', 'spec', 'arch', 'update', 'test']) {
         const emb = fakeEmbedding();
         const record = insertRecord(
           { projectId: project.id, kind, title: `${kind} record` },
@@ -204,8 +206,8 @@ describe('db.js', () => {
       }
     });
 
-    it('should support all valid statuses: open, resolved, archived', () => {
-      for (const status of ['open', 'resolved', 'archived']) {
+    it('should support all valid statuses: open, resolved, archived, active, inactive', () => {
+      for (const status of ['open', 'resolved', 'archived', 'active', 'inactive']) {
         const emb = fakeEmbedding();
         const record = insertRecord(
           { projectId: project.id, kind: 'issue', title: `${status} record`, status },

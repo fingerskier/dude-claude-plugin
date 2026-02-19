@@ -60,7 +60,7 @@ Single libsql file per user: `~/.dude-claude/dude-libsql.db`
 
 ### 3.2 `record`
 
-A record is one of four kinds: **issue**, **spec**, **arch**, or **update**.
+A record is one of five kinds: **issue**, **spec**, **arch**, **update**, or **test**.
 All share one table to keep queries and embeddings uniform.
 
 | Kind     | Meaning                                                        |
@@ -69,17 +69,20 @@ All share one table to keep queries and embeddings uniform.
 | `spec`   | A specification or plan (open = planned, resolved = done)      |
 | `arch`   | An architectural decision, pattern, or structural change       |
 | `update` | A feature implementation or improvement to existing functionality |
+| `test`   | A scenario, manual check, or verification procedure (active = should be performed, inactive = disabled) |
 
 | Column      | Type    | Notes                                                       |
 |-------------|---------|-------------------------------------------------------------|
 | id          | INTEGER | PK, autoincrement                                           |
 | project_id  | INTEGER | FK → project.id                                             |
-| kind        | TEXT    | `'issue'` / `'spec'` / `'arch'` / `'update'`               |
+| kind        | TEXT    | `'issue'` / `'spec'` / `'arch'` / `'update'` / `'test'`    |
 | title       | TEXT    | Short summary                                               |
 | body        | TEXT    | Full description / details                                  |
-| status      | TEXT    | `'open'` / `'resolved'` / `'archived'`                      |
+| status      | TEXT    | `'open'` / `'resolved'` / `'archived'` / `'active'` / `'inactive'` |
 | created_at  | TEXT    | ISO-8601                                                    |
 | updated_at  | TEXT    | ISO-8601                                                    |
+
+**Note:** Kind and status values are enforced at the business logic layer (Zod validation in the MCP server) rather than via database CHECK constraints. This allows adding new values without schema migrations.
 
 ### 3.3 Embeddings
 
@@ -120,7 +123,7 @@ Each result includes the originating `project` name/ID for disambiguation.
 | Parameter    | Type    | Required | Default | Description                       |
 |--------------|---------|----------|---------|-----------------------------------|
 | query        | string  | yes      | —       | Natural language search query     |
-| kind         | string  | no       | all     | Filter: `'issue'`, `'spec'`, `'arch'`, `'update'`, or `'all'` |
+| kind         | string  | no       | all     | Filter: `'issue'`, `'spec'`, `'arch'`, `'update'`, `'test'`, or `'all'` |
 | project      | string  | no       | current | Project name to boost; `'*'` for equal weight across all projects |
 | limit        | integer | no       | 5       | Max results returned              |
 
@@ -136,7 +139,7 @@ If `id` is provided, update; otherwise insert with deduplication (see below).
 | Parameter  | Type    | Required | Description              |
 |------------|---------|----------|--------------------------|
 | id         | integer | no       | Record ID to update      |
-| kind       | string  | yes      | `'issue'`, `'spec'`, `'arch'`, or `'update'` |
+| kind       | string  | yes      | `'issue'`, `'spec'`, `'arch'`, `'update'`, or `'test'` |
 | title      | string  | yes      | Short summary            |
 | body       | string  | no       | Full description         |
 | status     | string  | no       | Defaults to `'open'`     |
@@ -262,12 +265,13 @@ The flow is the same as the Stop hook: the agent reads the plan transcript, retu
 
 ### 5.4 Classification Logic
 
-The work classification (issue, spec, arch, or update) is determined by the agent hook's Claude subagent reading the actual session transcript — not by heuristics.
-The agent classifies the work into one of four kinds:
+The work classification (issue, spec, arch, update, or test) is determined by the agent hook's Claude subagent reading the actual session transcript — not by heuristics.
+The agent classifies the work into one of five kinds:
 - **issue**: a bug was fixed
 - **spec**: a plan or specification was created (or completed)
 - **arch**: an architectural decision, new pattern, or structural reorganization
 - **update**: a feature was added or improved
+- **test**: a scenario, manual check, or verification procedure was defined
 
 This leverages Claude's understanding of the conversation for accurate classification.
 
@@ -338,6 +342,8 @@ dude-claude-plugin/
 
 The libsql backend (`src/db-libsql.js`) creates the schema on first run via `_runSchema()`. Tables are created with `IF NOT EXISTS`, so the schema is idempotent. No versioned migrations are needed — the schema is defined inline.
 
+The record table does not use CHECK constraints — kind and status values are validated at the business logic layer (Zod schemas in the MCP server). On startup, `_migrateDropChecks()` detects if an existing database still has CHECK constraints and recreates the table without them.
+
 ### 8.2 Legacy Migration (sqlite-vec → libsql)
 
 On startup, `src/db.js` detects whether a legacy `dude.db` exists:
@@ -356,6 +362,7 @@ The migration script handles:
 The old `better-sqlite3` backend used versioned migration scripts in `src/migrations/`:
 - `001-initial.js` — project, record, record_embedding tables
 - `002-expand-kinds.js` — added 'arch' and 'update' kinds
+- `003-drop-checks.js` — removed CHECK constraints (kind/status validated in business logic)
 
 These are retained for legacy migration support but are not used by the libsql backend.
 
