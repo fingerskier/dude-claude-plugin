@@ -21,6 +21,7 @@ export class LibsqlAdapter extends DbAdapter {
     this.config = config;
     this.db = null;
     this.currentProject = null;
+    this._syncError = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -30,13 +31,32 @@ export class LibsqlAdapter extends DbAdapter {
   async init() {
     if (this.db) return;
     this._ensureDataDir();
-    this.db = this._createClient();
+    this._syncError = null;
+
+    if (this._hasSyncConfig()) {
+      try {
+        this.db = this._createClient();  // tries sync-enabled client
+      } catch (err) {
+        console.error(`[dude] Cloud sync connection failed: ${err.message}`);
+        console.error('[dude] Falling back to local-only mode.');
+        this._syncError = err.message;
+        this.db = this._createLocalOnlyClient();
+      }
+    } else {
+      this.db = this._createLocalOnlyClient();
+    }
+
     await this._runSchema();
     const projectName = this._detectProject();
     this.currentProject = await this._upsertProject(projectName);
     await this._migrateProjectNames(projectName);
+
     const syncInfo = await this.syncStatus();
-    const syncMsg = syncInfo.enabled ? ` | cloud sync → ${syncInfo.syncUrl}` : '';
+    const syncMsg = syncInfo.enabled
+      ? ` | cloud sync → ${syncInfo.syncUrl}`
+      : syncInfo.error
+        ? ' | cloud sync FAILED — local-only mode'
+        : '';
     console.error(`[dude] LibSQL DB ready — project "${this.currentProject.name}" (id=${this.currentProject.id})${syncMsg}`);
   }
 
@@ -44,6 +64,15 @@ export class LibsqlAdapter extends DbAdapter {
     if (!existsSync(DATA_DIR)) {
       mkdirSync(DATA_DIR, { recursive: true });
     }
+  }
+
+  _hasSyncConfig() {
+    return !!(this.config.syncUrl || process.env.DUDE_TURSO_URL);
+  }
+
+  _createLocalOnlyClient() {
+    const url = this.config.url || `file:${this.config.dbPath || DB_PATH}`;
+    return createClient({ url });
   }
 
   _createClient() {
@@ -55,8 +84,8 @@ export class LibsqlAdapter extends DbAdapter {
     if (this.config.syncUrl || process.env.DUDE_TURSO_URL) {
       opts.syncUrl = this.config.syncUrl || process.env.DUDE_TURSO_URL;
       opts.authToken = this.config.authToken || process.env.DUDE_TURSO_TOKEN;
-      const interval = this.config.syncInterval || process.env.DUDE_SYNC_INTERVAL;
-      if (interval) opts.syncInterval = parseInt(interval);
+      const interval = this.config.syncInterval || process.env.DUDE_SYNC_INTERVAL || 60000;
+      opts.syncInterval = parseInt(interval);
     }
 
     return createClient(opts);
@@ -419,22 +448,39 @@ export class LibsqlAdapter extends DbAdapter {
     const syncUrl = this.config.syncUrl || process.env.DUDE_TURSO_URL || null;
     const syncInterval = this.config.syncInterval
       || process.env.DUDE_SYNC_INTERVAL
-      || null;
+      || (syncUrl ? 60000 : null);
     return {
-      enabled: !!syncUrl,
+      enabled: !!syncUrl && !this._syncError,
       ...(syncUrl ? { syncUrl } : {}),
       ...(syncInterval ? { syncInterval: parseInt(syncInterval) } : {}),
+      ...(this._syncError ? { error: this._syncError, degraded: true } : {}),
     };
   }
 
   async sync() {
-    const status = await this.syncStatus();
-    if (!status.enabled) {
+    if (!this._hasSyncConfig()) {
       return { synced: false, message: 'Cloud sync not configured. Set DUDE_TURSO_URL and DUDE_TURSO_TOKEN to enable.' };
     }
+
+    // If degraded, attempt to reconnect with sync-enabled client
+    if (this._syncError) {
+      try {
+        const newClient = this._createClient();
+        // Run a test query to verify the connection works
+        await newClient.execute('SELECT 1');
+        this.db.close();
+        this.db = newClient;
+        this._syncError = null;
+        console.error('[dude] Cloud sync reconnected successfully.');
+        return { synced: true, message: `Reconnected and synced with ${this.config.syncUrl || process.env.DUDE_TURSO_URL}` };
+      } catch (err) {
+        return { synced: false, message: `Reconnection failed: ${err.message}` };
+      }
+    }
+
     try {
       await this.db.sync();
-      return { synced: true, message: `Synced with ${status.syncUrl}` };
+      return { synced: true, message: `Synced with ${this.config.syncUrl || process.env.DUDE_TURSO_URL}` };
     } catch (err) {
       return { synced: false, message: `Sync failed: ${err.message}` };
     }

@@ -406,9 +406,19 @@ describe('LibsqlAdapter', () => {
 
   describe('syncStatus', () => {
     it('should report sync as disabled when no sync URL configured', async () => {
-      const status = await adapter.syncStatus();
-      expect(status.enabled).toBe(false);
-      expect(status.syncUrl).toBeUndefined();
+      // Temporarily clear env vars so only config matters
+      const savedUrl = process.env.DUDE_TURSO_URL;
+      const savedToken = process.env.DUDE_TURSO_TOKEN;
+      delete process.env.DUDE_TURSO_URL;
+      delete process.env.DUDE_TURSO_TOKEN;
+      try {
+        const status = await adapter.syncStatus();
+        expect(status.enabled).toBe(false);
+        expect(status.syncUrl).toBeUndefined();
+      } finally {
+        if (savedUrl !== undefined) process.env.DUDE_TURSO_URL = savedUrl;
+        if (savedToken !== undefined) process.env.DUDE_TURSO_TOKEN = savedToken;
+      }
     });
 
     it('should report sync as enabled when syncUrl is in config', async () => {
@@ -428,9 +438,23 @@ describe('LibsqlAdapter', () => {
 
   describe('sync', () => {
     it('should return not-configured message when sync is disabled', async () => {
-      const result = await adapter.sync();
-      expect(result.synced).toBe(false);
-      expect(result.message).toContain('not configured');
+      // Temporarily clear env vars so only config matters
+      const savedUrl = process.env.DUDE_TURSO_URL;
+      const savedToken = process.env.DUDE_TURSO_TOKEN;
+      delete process.env.DUDE_TURSO_URL;
+      delete process.env.DUDE_TURSO_TOKEN;
+      try {
+        // Need a fresh adapter without _syncError from env-based init
+        const freshAdapter = new LibsqlAdapter({ url: 'file::memory:' });
+        await freshAdapter.init();
+        const result = await freshAdapter.sync();
+        expect(result.synced).toBe(false);
+        expect(result.message).toContain('not configured');
+        await freshAdapter.close();
+      } finally {
+        if (savedUrl !== undefined) process.env.DUDE_TURSO_URL = savedUrl;
+        if (savedToken !== undefined) process.env.DUDE_TURSO_TOKEN = savedToken;
+      }
     });
   });
 
