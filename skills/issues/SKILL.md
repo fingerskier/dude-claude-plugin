@@ -10,74 +10,73 @@ Track bugs, tasks, and blockers via the `dude:` MCP tools.
 ## Quick Start
 
 ```
-dude:list_issues { "projectUuid": "..." }   - List project issues
-dude:create_issue { "project_uuid": "...", "text": "BUG: ..." }
-dude:search { "entityTypes": ["issue"] }    - Find issues
+dude:list_records { "kind": "issue" }         - List all issues
+dude:upsert_record { "kind": "issue", "title": "BUG: ..." }  - Create issue
+dude:search { "query": "...", "kind": "issue" }               - Find issues
 ```
 
 ## Issue Operations
 
 ### Listing Issues
-| Tool | Description |
-|------|-------------|
-| `dude:list_issues` | List issues for a project |
+```
+dude:list_records { "kind": "issue" }
+dude:list_records { "kind": "issue", "status": "open" }
+dude:list_records { "kind": "issue", "project": "my-org/my-repo" }
+```
 
 **Parameters:**
-- `projectUuid` (required): Project UUID
-- `parentUuid` (optional): Filter to children of parent issue
+- `kind` — set to `"issue"` to filter to issues only
+- `status` (optional) — `"open"`, `"resolved"`, `"archived"`, or `"all"`
+- `project` (optional) — project name, or `"*"` for all projects
 
 ### Getting Issue Details
-| Tool | Description |
-|------|-------------|
-| `dude:get_issue` | Get single issue details |
+```
+dude:get_record { "id": 42 }
+```
 
 **Parameters:**
-- `uuid` (required): Issue UUID
+- `id` (required): Record ID (integer)
 
 ### Creating Issues
-| Tool | Description |
-|------|-------------|
-| `dude:create_issue` | Create new issue |
+```
+dude:upsert_record {
+  "kind": "issue",
+  "title": "BUG: Load cell readings drift after 2 hours",
+  "body": "Detailed description of the problem..."
+}
+```
 
 **Parameters:**
-- `project_uuid` (required): Project UUID
-- `text` (required): Issue description
-- `parent_issue_uuid` (optional): Parent issue for nesting
-
-**Examples:**
-```
-dude:create_issue {
-  "project_uuid": "...",
-  "text": "BUG: Load cell readings drift after 2 hours"
-}
-
-dude:create_issue {
-  "project_uuid": "...",
-  "text": "TASK: Implement user authentication",
-  "parent_issue_uuid": "parent-task-uuid"
-}
-```
+- `kind` (required): `"issue"`
+- `title` (required): Short summary (use prefixes below)
+- `body` (optional): Full description
+- `status` (optional): Defaults to `"open"`
 
 ### Updating Issues
-| Tool | Description |
-|------|-------------|
-| `dude:update_issue` | Update existing issue |
-
-**Parameters:**
-- `uuid` (required): Issue UUID
-- `text` (optional): New description
-- `parent_issue_uuid` (optional, nullable): New parent (null for top-level)
-- `complete` (optional): Set completion status (1 = complete, 0 = incomplete)
+Provide the `id` of an existing record to update it:
+```
+dude:upsert_record {
+  "id": 42,
+  "kind": "issue",
+  "title": "BUG: Load cell readings drift after 2 hours - found root cause",
+  "status": "resolved"
+}
+```
 
 ### Completing Issues
-To mark an issue as complete:
+Set status to `"resolved"`:
 ```
-dude:update_issue { "uuid": "...", "complete": 1 }
+dude:upsert_record { "id": 42, "kind": "issue", "title": "...", "status": "resolved" }
 ```
 
-To reopen an issue:
+To reopen:
 ```
-dude:update_issue { "uuid": "...", "complete": 0 }
+dude:upsert_record { "id": 42, "kind": "issue", "title": "...", "status": "open" }
+```
+
+### Deleting Issues
+```
+dude:delete_record { "id": 42 }
 ```
 
 ## Search for Issues
@@ -86,25 +85,17 @@ dude:update_issue { "uuid": "...", "complete": 0 }
 ```
 dude:search {
   "query": "memory leak in worker thread",
-  "entityTypes": ["issue"],
-  "projectUuid": "optional-project-uuid"
+  "kind": "issue",
+  "project": "my-org/my-repo",
+  "limit": 10
 }
 ```
 
 **Parameters:**
 - `query` (required): Natural language search query
-- `limit` (optional): Max results (default: 10)
-- `threshold` (optional): Min similarity 0-1 (default: 0.3)
-- `entityTypes` (optional): Filter to `["issue"]`
-- `projectUuid` (optional): Scope to specific project
-
-### Keyword Search
-```
-dude:search_text { "query": "BUG" }
-```
-
-**Parameters:**
-- `query` (required): Text to search for
+- `kind` (optional): Set to `"issue"` to filter results
+- `project` (optional): Project name to boost, or `"*"` for equal weight
+- `limit` (optional): Max results (default 5)
 
 ## Issue Conventions
 
@@ -116,7 +107,5 @@ Use prefixes to categorize issues:
 
 ## Related Skills
 
-- **dude:projects**: Manage projects and get full project context
-- **dude:specifications**: Document requirements and architecture
-
-**Tip:** Use `dude:get_project_context` (from dude:projects) to see all issues for a project at once.
+- **dude:projects** — List and explore projects
+- **dude:specifications** — Document requirements and architecture

@@ -1,6 +1,6 @@
 import { createClient } from '@libsql/client';
 import { execSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { DbAdapter } from './db-adapter.js';
@@ -184,6 +184,20 @@ export class LibsqlAdapter extends DbAdapter {
   }
 
   _detectProject() {
+    const cwd = process.cwd();
+    const cacheFile = join(DATA_DIR, '.project-cache.json');
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    // Check cache first
+    try {
+      if (existsSync(cacheFile)) {
+        const cache = JSON.parse(readFileSync(cacheFile, 'utf8'));
+        if (cache.cwd === cwd && (Date.now() - cache.timestamp) < CACHE_TTL) {
+          return cache.name;
+        }
+      }
+    } catch { /* cache miss — fall through to detection */ }
+
     let name;
     try {
       const toplevel = execSync('git rev-parse --show-toplevel', {
@@ -207,8 +221,14 @@ export class LibsqlAdapter extends DbAdapter {
         // No remote — keep basename
       }
     } catch {
-      name = process.cwd();
+      name = cwd;
     }
+
+    // Write cache
+    try {
+      writeFileSync(cacheFile, JSON.stringify({ cwd, name, timestamp: Date.now() }));
+    } catch { /* never let caching crash the server */ }
+
     return name;
   }
 
@@ -372,8 +392,8 @@ export class LibsqlAdapter extends DbAdapter {
     return result.rowsAffected > 0;
   }
 
-  async search(embedding, { kind, projectId, limit = 5 } = {}) {
-    const curProject = await this.getCurrentProject();
+  async search(embedding, { kind, project, limit = 5 } = {}) {
+    const boostProject = project === '*' ? null : (project || (await this.getCurrentProject()).name);
     const embJson = this._embeddingToJson(embedding);
     const candidateLimit = Math.floor(limit * 3);
 
@@ -396,7 +416,7 @@ export class LibsqlAdapter extends DbAdapter {
 
     let rows = result.rows.map(row => {
       const similarity = this._computeSimilarity(embedding, row.embedding);
-      const boosted = (row.project === curProject.name)
+      const boosted = (boostProject && row.project === boostProject)
         ? Math.min(1.0, similarity + 0.1)
         : similarity;
       return { ...row, similarity: boosted };

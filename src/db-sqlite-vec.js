@@ -203,8 +203,8 @@ export class SqliteVecAdapter extends DbAdapter {
     return tx();
   }
 
-  async search(embedding, { kind, projectId, limit = 5 } = {}) {
-    const curProject = await this.getCurrentProject();
+  async search(embedding, { kind, project, limit = 5 } = {}) {
+    const boostProject = project === '*' ? null : (project || (await this.getCurrentProject()).name);
 
     let sql = `
       SELECT
@@ -232,7 +232,7 @@ export class SqliteVecAdapter extends DbAdapter {
     // Convert cosine distance to similarity and apply project boost
     rows = rows.map(row => {
       let similarity = 1 - row.distance;
-      if (row.project === curProject.name) {
+      if (boostProject && row.project === boostProject) {
         similarity = Math.min(1.0, similarity + 0.1);
       }
       return { ...row, similarity };

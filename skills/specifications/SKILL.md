@@ -7,76 +7,80 @@ description: "Document specifications using the dude MCP server. List, create, u
 
 Document requirements and architecture via the `dude:` MCP tools.
 
+Specs and architecture decisions are stored as records with kind `"spec"` or `"arch"`.
+
 ## Quick Start
 
 ```
-dude:list_specifications { "projectUuid": "..." }   - List specs
-dude:create_specification { "project_uuid": "...", "text": "..." }
-dude:search { "entityTypes": ["specification"] }    - Find specs
+dude:list_records { "kind": "spec" }              - List specifications
+dude:list_records { "kind": "arch" }              - List architecture decisions
+dude:upsert_record { "kind": "spec", "title": "API: POST /users ..." }  - Create spec
+dude:search { "query": "...", "kind": "spec" }    - Find specs
 ```
 
 ## Specification Operations
 
 ### Listing Specifications
-| Tool | Description |
-|------|-------------|
-| `dude:list_specifications` | List specs for a project |
+```
+dude:list_records { "kind": "spec" }
+dude:list_records { "kind": "arch" }
+dude:list_records { "kind": "spec", "status": "open" }
+```
 
 **Parameters:**
-- `projectUuid` (required): Project UUID
-- `parentUuid` (optional): Filter to children of parent spec
+- `kind` — `"spec"` for specifications, `"arch"` for architecture decisions
+- `status` (optional) — `"open"`, `"resolved"`, `"archived"`, or `"all"`
+- `project` (optional) — project name, or `"*"` for all projects
 
 ### Getting Specification Details
-| Tool | Description |
-|------|-------------|
-| `dude:get_specification` | Get single spec details |
+```
+dude:get_record { "id": 42 }
+```
 
 **Parameters:**
-- `uuid` (required): Specification UUID
+- `id` (required): Record ID (integer)
 
 ### Creating Specifications
-| Tool | Description |
-|------|-------------|
-| `dude:create_specification` | Create new specification |
+```
+dude:upsert_record {
+  "kind": "spec",
+  "title": "AUTH: JWT tokens with 24h expiry",
+  "body": "Refresh handled in authMiddleware.js. Tokens are RS256 signed."
+}
+
+dude:upsert_record {
+  "kind": "arch",
+  "title": "ARCH: Use libsql for local+cloud hybrid storage",
+  "body": "Local SQLite file with optional Turso cloud sync."
+}
+```
 
 **Parameters:**
-- `project_uuid` (required): Project UUID
-- `text` (required): Specification content
-- `parent_specification_uuid` (optional): Parent spec for nesting
-
-**Examples:**
-```
-dude:create_specification {
-  "project_uuid": "...",
-  "text": "AUTH: JWT tokens with 24h expiry. Refresh handled in authMiddleware.js"
-}
-
-dude:create_specification {
-  "project_uuid": "...",
-  "text": "API: POST /users returns 201 with user object on success"
-}
-```
+- `kind` (required): `"spec"` or `"arch"`
+- `title` (required): Short summary (use prefixes below)
+- `body` (optional): Full description
+- `status` (optional): Defaults to `"open"`
 
 ### Updating Specifications
-| Tool | Description |
-|------|-------------|
-| `dude:update_specification` | Update existing spec |
-
-**Parameters:**
-- `uuid` (required): Specification UUID
-- `text` (optional): New content
-- `parent_specification_uuid` (optional, nullable): New parent (null for top-level)
-- `valid` (optional): Set validity status (1 = valid, 0 = invalid/deprecated)
-
-### Invalidating Specifications
-To mark a specification as invalid/deprecated:
+Provide the `id` of an existing record to update it:
 ```
-dude:update_specification { "uuid": "...", "valid": 0 }
+dude:upsert_record {
+  "id": 42,
+  "kind": "spec",
+  "title": "AUTH: JWT tokens with 1h expiry (changed from 24h)",
+  "body": "Updated based on security review..."
+}
 ```
 
-To restore validity:
+### Archiving Specifications
+Set status to `"archived"` to mark as deprecated:
 ```
-dude:update_specification { "uuid": "...", "valid": 1 }
+dude:upsert_record { "id": 42, "kind": "spec", "title": "...", "status": "archived" }
+```
+
+### Deleting Specifications
+```
+dude:delete_record { "id": 42 }
 ```
 
 ## Search for Specifications
@@ -85,25 +89,17 @@ dude:update_specification { "uuid": "...", "valid": 1 }
 ```
 dude:search {
   "query": "authentication flow JWT tokens",
-  "entityTypes": ["specification"],
-  "projectUuid": "optional-project-uuid"
+  "kind": "spec",
+  "project": "my-org/my-repo",
+  "limit": 10
 }
 ```
 
 **Parameters:**
 - `query` (required): Natural language search query
-- `limit` (optional): Max results (default: 10)
-- `threshold` (optional): Min similarity 0-1 (default: 0.3)
-- `entityTypes` (optional): Filter to `["specification"]`
-- `projectUuid` (optional): Scope to specific project
-
-### Keyword Search
-```
-dude:search_text { "query": "API" }
-```
-
-**Parameters:**
-- `query` (required): Text to search for
+- `kind` (optional): `"spec"` or `"arch"` to filter results
+- `project` (optional): Project name to boost, or `"*"` for equal weight
+- `limit` (optional): Max results (default 5)
 
 ## Specification Conventions
 
@@ -116,7 +112,5 @@ Use prefixes to categorize:
 
 ## Related Skills
 
-- **dude:projects**: Manage projects and get full project context
-- **dude:issues**: Track bugs and tasks
-
-**Tip:** Use `dude:get_project_context` (from dude:projects) to see all specs for a project at once.
+- **dude:projects** — List and explore projects
+- **dude:issues** — Track bugs and tasks

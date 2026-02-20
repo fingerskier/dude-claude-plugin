@@ -10,6 +10,9 @@ import { embed } from '../src/embed.js';
 import { initDb } from '../src/db.js';
 
 try {
+  // Start DB init early — runs in parallel with stdin reading
+  const dbPromise = initDb();
+
   const chunks = [];
   for await (const chunk of process.stdin) {
     chunks.push(chunk);
@@ -21,8 +24,13 @@ try {
     process.exit(0);
   }
 
-  const db = await initDb();
-  const project = await db.getCurrentProject();
+  const db = await dbPromise;
+
+  // Parallelize embedding + project lookup
+  const [embedding, project] = await Promise.all([
+    embed(prompt),
+    db.getCurrentProject(),
+  ]);
 
   // 1) Project identification
   process.stdout.write(`[dude] Project: ${project.name} (id=${project.id})\n`);
@@ -39,7 +47,6 @@ try {
   }
 
   // 3) Semantic search
-  const embedding = await embed(prompt);
   const limit = Number(process.env.DUDE_CONTEXT_LIMIT) || 5;
   const results = await db.search(embedding, { limit });
 

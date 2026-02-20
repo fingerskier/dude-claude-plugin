@@ -25,7 +25,7 @@ export async function startServer() {
     async ({ query, kind, project, limit }) => {
       try {
         const embedding = await embed(query);
-        const results = await db.search(embedding, { kind, limit });
+        const results = await db.search(embedding, { kind, project, limit });
         return {
           content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
         };
@@ -50,8 +50,10 @@ export async function startServer() {
     async ({ id, kind, title, body, status }) => {
       try {
         const text = `${title} ${body || ''}`.trim();
-        const embedding = await embed(text);
-        const project = await db.getCurrentProject();
+        const [embedding, project] = await Promise.all([
+          embed(text),
+          db.getCurrentProject(),
+        ]);
         const record = await db.upsert(
           { id, projectId: project.id, kind, title, body: body || '', status: status || 'open' },
           embedding,

@@ -10,6 +10,9 @@ import { embed } from '../src/embed.js';
 import { initDb } from '../src/db.js';
 
 try {
+  // Start DB init early — runs in parallel with stdin reading
+  const dbPromise = initDb();
+
   const chunks = [];
   for await (const chunk of process.stdin) {
     chunks.push(chunk);
@@ -34,11 +37,15 @@ try {
     const body = input.body || '';
     const status = input.status || 'open';
 
-    const db = await initDb();
+    const db = await dbPromise;
     const text = `${title} ${body}`.trim();
-    const embedding = await embed(text);
 
-    const project = await db.getCurrentProject();
+    // Parallelize embedding + project lookup
+    const [embedding, project] = await Promise.all([
+      embed(text),
+      db.getCurrentProject(),
+    ]);
+
     const record = await db.upsert(
       {
         projectId: project.id,
