@@ -57,6 +57,7 @@
     .badge-arch { background: #fff3e0; color: #e65100; }
     .badge-update { background: #e8f5e9; color: #1b5e20; }
     .badge-test { background: #e0f7fa; color: #00695c; }
+    .badge-todo { background: #fce4ec; color: #880e4f; }
     .badge-open { background: #e8f5e9; color: #2e7d32; }
     .badge-resolved { background: #f3e5f5; color: #6a1b9a; }
     .badge-archived { background: #eceff1; color: #546e7a; }
@@ -118,6 +119,7 @@
           <option value="arch">Arch</option>
           <option value="update">Updates</option>
           <option value="test">Tests</option>
+          <option value="todo">Todos</option>
         </select>
         <select id="statusFilter">
           <option value="">All statuses</option>
@@ -221,6 +223,7 @@
             <option value="arch" ${record.kind === 'arch' ? 'selected' : ''}>Arch</option>
             <option value="update" ${record.kind === 'update' ? 'selected' : ''}>Update</option>
             <option value="test" ${record.kind === 'test' ? 'selected' : ''}>Test</option>
+            <option value="todo" ${record.kind === 'todo' ? 'selected' : ''}>Todo</option>
           </select>
         </div>
         <div class="form-group">
@@ -264,6 +267,7 @@
             <option value="arch">Arch</option>
             <option value="update">Update</option>
             <option value="test">Test</option>
+            <option value="todo">Todo</option>
           </select>
         </div>
         <div class="form-group">
