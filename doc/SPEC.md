@@ -60,7 +60,7 @@ Single libsql file per user: `~/.dude-claude/dude-libsql.db`
 
 ### 3.2 `record`
 
-A record is one of five kinds: **issue**, **spec**, **arch**, **update**, or **test**.
+A record is one of six kinds: **issue**, **spec**, **arch**, **update**, **test**, or **todo**.
 All share one table to keep queries and embeddings uniform.
 
 | Kind     | Meaning                                                        |
@@ -70,12 +70,13 @@ All share one table to keep queries and embeddings uniform.
 | `arch`   | An architectural decision, pattern, or structural change       |
 | `update` | A feature implementation or improvement to existing functionality |
 | `test`   | A scenario, manual check, or verification procedure (active = should be performed, inactive = disabled) |
+| `todo`   | A new feature request or enhancement to existing functionality (open = planned, resolved = done) |
 
 | Column      | Type    | Notes                                                       |
 |-------------|---------|-------------------------------------------------------------|
 | id          | INTEGER | PK, autoincrement                                           |
 | project_id  | INTEGER | FK → project.id                                             |
-| kind        | TEXT    | `'issue'` / `'spec'` / `'arch'` / `'update'` / `'test'`    |
+| kind        | TEXT    | `'issue'` / `'spec'` / `'arch'` / `'update'` / `'test'` / `'todo'` |
 | title       | TEXT    | Short summary                                               |
 | body        | TEXT    | Full description / details                                  |
 | status      | TEXT    | `'open'` / `'resolved'` / `'archived'` / `'active'` / `'inactive'` |
@@ -123,7 +124,7 @@ Each result includes the originating `project` name/ID for disambiguation.
 | Parameter    | Type    | Required | Default | Description                       |
 |--------------|---------|----------|---------|-----------------------------------|
 | query        | string  | yes      | —       | Natural language search query     |
-| kind         | string  | no       | all     | Filter: `'issue'`, `'spec'`, `'arch'`, `'update'`, `'test'`, or `'all'` |
+| kind         | string  | no       | all     | Filter: `'issue'`, `'spec'`, `'arch'`, `'update'`, `'test'`, `'todo'`, or `'all'` |
 | project      | string  | no       | current | Project name to boost; `'*'` for equal weight across all projects |
 | limit        | integer | no       | 5       | Max results returned              |
 
@@ -139,7 +140,7 @@ If `id` is provided, update; otherwise insert with deduplication (see below).
 | Parameter  | Type    | Required | Description              |
 |------------|---------|----------|--------------------------|
 | id         | integer | no       | Record ID to update      |
-| kind       | string  | yes      | `'issue'`, `'spec'`, `'arch'`, `'update'`, or `'test'` |
+| kind       | string  | yes      | `'issue'`, `'spec'`, `'arch'`, `'update'`, `'test'`, or `'todo'` |
 | title      | string  | yes      | Short summary            |
 | body       | string  | no       | Full description         |
 | status     | string  | no       | Defaults to `'open'`     |
@@ -265,13 +266,14 @@ The flow is the same as the Stop hook: the agent reads the plan transcript, retu
 
 ### 5.4 Classification Logic
 
-The work classification (issue, spec, arch, update, or test) is determined by the agent hook's Claude subagent reading the actual session transcript — not by heuristics.
-The agent classifies the work into one of five kinds:
+The work classification (issue, spec, arch, update, test, or todo) is determined by the agent hook's Claude subagent reading the actual session transcript — not by heuristics.
+The agent classifies the work into one of six kinds:
 - **issue**: a bug was fixed
 - **spec**: a plan or specification was created (or completed)
 - **arch**: an architectural decision, new pattern, or structural reorganization
 - **update**: a feature was added or improved
 - **test**: a scenario, manual check, or verification procedure was defined
+- **todo**: a new feature request or enhancement was identified or planned
 
 This leverages Claude's understanding of the conversation for accurate classification.
 
