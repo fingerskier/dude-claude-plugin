@@ -1,3 +1,26 @@
+# Engraph the Data
+* add an `edges` table:
+```
+edges:
+  uuid          -- primary key
+  source_uuid   -- any entity
+  target_uuid   -- any entity  
+  source_table  -- projects, records
+  target_table  -- projects, records
+  relationship  -- DEPENDS_ON, BREAKS, IMPLEMENTS, FEEDS_DATA_TO, CONTROLS, etc.
+  description   -- optional freetext context
+  created_at
+  updated_at
+  vector
+```
+* MCP tools
+  * `create_edge`
+  * `list_edges` ~ all edges connected to that project/record
+  * `impact` ~ a project-grouped list of everything downstream
+* CTEs in SQLite handle graph traversal
+
+----
+
 * Add `files` field to records
   * agents will update this field to be a list of the most pertinent files involved in the work described by the record (if any)
   * use relative file-paths (i.e. project root)
